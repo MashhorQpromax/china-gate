@@ -31,6 +31,7 @@ import {
   Country,
   Currency,
   Incoterm,
+  PartnershipStatus,
 } from '../types';
 
 // ============================================================================
