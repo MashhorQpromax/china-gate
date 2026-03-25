@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       city,
       phone,
       commercialReg,
+      sector,
     } = body;
 
     // Validate required fields
@@ -73,12 +74,28 @@ export async function POST(request: NextRequest) {
           city,
           phone,
           commercial_reg: commercialReg,
+          sector: sector || null,
+          email: email,
         })
         .eq('id', authData.user.id);
 
       if (profileError) {
         console.error('Profile update error:', profileError);
       }
+    }
+
+    // Log registration in security audit
+    if (authData.user) {
+      await supabase.from('security_audit_log').insert({
+        user_id: authData.user.id,
+        action: 'account_created',
+        action_type: 'auth',
+        description: `New ${accountType} account created: ${email}`,
+        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
+        user_agent: request.headers.get('user-agent') || '',
+        metadata: { email, accountType, company: companyName, country, city },
+        risk_level: 'low',
+      }).catch(() => {});
     }
 
     return NextResponse.json(

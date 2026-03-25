@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Lock, Loader } from 'lucide-react';
 import { validateEmail, validatePhone } from '@/lib/validation';
+import { collectClientInfo } from '@/lib/tracking/client-info';
 
 export default function LoginPage() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -46,12 +47,16 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
+      // Collect client info for tracking
+      const clientInfo = collectClientInfo();
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: emailOrPhone,
           password,
+          clientInfo,
         }),
       });
 

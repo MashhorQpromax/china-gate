@@ -57,6 +57,7 @@ export default function RegisterPage() {
           city: formData.city,
           phone: formData.phone,
           commercialReg: formData.commercialRegistration,
+          sector: formData.sector || null,
         }),
       });
 

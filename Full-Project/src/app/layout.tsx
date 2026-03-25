@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Sans_Arabic, DM_Sans } from 'next/font/google';
 import './globals.css';
+import TrackingProvider from '@/lib/tracking/TrackingProvider';
 
 // Font imports
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
@@ -66,7 +67,9 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="bg-white text-slate-900 antialiased font-sans">
-        {children}
+        <TrackingProvider>
+          {children}
+        </TrackingProvider>
       </body>
     </html>
   );
