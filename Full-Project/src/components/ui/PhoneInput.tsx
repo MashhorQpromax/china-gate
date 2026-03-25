@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { GULF_COUNTRIES, getCountryCodePrefix } from '@/lib/validation';
+import { GULF_COUNTRIES } from '@/constants/auth';
+import { getCountryCodePrefix } from '@/lib/validation';
 
 interface PhoneInputProps {
   value: string;

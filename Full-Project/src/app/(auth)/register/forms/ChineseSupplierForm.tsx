@@ -226,7 +226,7 @@ export default function ChineseSupplierForm({
             })
           }
           placeholder="18-digit license number"
-          maxLength="18"
+          maxLength={18}
           className={`w-full px-4 py-2.5 bg-gray-700 border rounded-lg text-white focus:outline-none focus:border-red-500 transition ${
             errors.businessLicense ? 'border-red-500' : 'border-gray-600'
           }`}
