@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Arabic, DM_Sans } from 'next/font/google';
+import { IBM_Plex_Sans_Arabic, DM_Sans } from 'next/font/google';
 import './globals.css';
 
 // Font imports
-const ibmPlexArabic = IBM_Plex_Arabic({
+const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic', 'latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-ibm-plex-arabic',
