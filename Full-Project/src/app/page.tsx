@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 
 // This is a placeholder that will render a landing page component
 // For now, it simply displays a basic welcome message and navigation

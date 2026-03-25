@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AccountCard from '@/components/banking/AccountCard';
 import TransactionList from '@/components/banking/TransactionList';

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import QualityStats from '@/components/quality/QualityStats';
 import { cn } from '@/lib/utils';

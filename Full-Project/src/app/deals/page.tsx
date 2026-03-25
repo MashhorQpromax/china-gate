@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import DealCard from '@/components/deals/DealCard';
 import { DEMO_DEALS, DEMO_COMPANIES } from '@/lib/demo-data';

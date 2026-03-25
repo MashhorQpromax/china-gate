@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Currency, Incoterm } from '@/types';
 import { DEMO_DEALS, DEMO_COMPANIES } from '@/lib/demo-data';
 

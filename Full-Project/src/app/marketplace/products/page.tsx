@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductCard from '@/components/marketplace/ProductCard';
 import { Currency, Incoterm } from '@/types';

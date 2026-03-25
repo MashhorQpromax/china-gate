@@ -1,4 +1,3 @@
-import React from 'react';
 import { Deal, DealStage } from '@/types';
 
 interface DealCardProps {
