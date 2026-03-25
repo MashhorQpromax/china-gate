@@ -1,66 +1,87 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
-interface StatCard {
-  label: string;
-  value: string | number;
-  change?: string;
-  changeType?: 'positive' | 'negative';
+interface AdminStats {
+  total_users: number;
+  total_buyers: number;
+  total_suppliers: number;
+  total_manufacturers: number;
+  total_deals: number;
+  active_deals: number;
+  total_trade_value: number;
+  total_shipments: number;
+  active_shipments: number;
+  total_rfqs: number;
+  open_rfqs: number;
+  total_tickets: number;
+  open_tickets: number;
+  recent_deals: RecentDeal[];
+  recent_users: RecentUser[];
+}
+
+interface RecentDeal {
+  id: string;
+  reference: string;
+  product: string;
+  buyer: string;
+  supplier: string;
+  value: number;
+  stage: string;
+}
+
+interface RecentUser {
+  id: string;
+  name: string;
+  email: string;
+  type: string;
+  joined: string;
+}
+
+// Helper function to format currency values
+function formatCurrency(value: number): string {
+  if (value < 1000) {
+    return `$${value}`;
+  } else if (value < 1000000) {
+    return `$${(value / 1000).toFixed(1)}k`;
+  } else {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+}
+
+// Loading skeleton for stat cards
+function StatCardSkeleton() {
+  return (
+    <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 animate-pulse">
+      <div className="h-4 bg-[#242830] rounded w-24 mb-4"></div>
+      <div className="h-8 bg-[#242830] rounded w-32 mb-2"></div>
+      <div className="h-3 bg-[#242830] rounded w-28"></div>
+    </div>
+  );
+}
+
+// Loading skeleton for chart
+function ChartSkeleton() {
+  return (
+    <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 animate-pulse">
+      <div className="h-6 bg-[#242830] rounded w-40 mb-6"></div>
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i}>
+            <div className="h-4 bg-[#242830] rounded w-full mb-2"></div>
+            <div className="h-2 bg-[#242830] rounded w-full"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboardPage() {
-  const statCards: StatCard[] = [
-    {
-      label: 'Total Users',
-      value: 1247,
-      change: '+85 new this month',
-      changeType: 'positive',
-    },
-    {
-      label: 'Active Deals',
-      value: 342,
-      change: '+28 this week',
-      changeType: 'positive',
-    },
-    {
-      label: 'Products Listed',
-      value: 5821,
-      change: '+234 this month',
-      changeType: 'positive',
-    },
-    {
-      label: 'Total Deal Value',
-      value: '$8.5M',
-      change: '+$1.2M this month',
-      changeType: 'positive',
-    },
-    {
-      label: 'Active LCs/LGs',
-      value: 156,
-      change: '+12 this week',
-      changeType: 'positive',
-    },
-    {
-      label: 'Quality Pass Rate',
-      value: '96.8%',
-      change: '+0.5% this month',
-      changeType: 'positive',
-    },
-    {
-      label: 'Active Partnerships',
-      value: 89,
-      change: '+15 this quarter',
-      changeType: 'positive',
-    },
-    {
-      label: 'Platform Revenue',
-      value: '$425k',
-      change: '+$85k this month',
-      changeType: 'positive',
-    },
-  ];
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const quickLinks = [
     { label: 'User Management', href: '/dashboard/admin/users', icon: '👥' },
@@ -70,6 +91,64 @@ export default function AdminDashboardPage() {
     { label: 'Shipping Management', href: '/dashboard/admin/shipping', icon: '🚢' },
     { label: 'Platform Settings', href: '/dashboard/admin/settings', icon: '⚙️' },
   ];
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch('/api/admin/stats', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch stats');
+        }
+
+        setStats(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Failed to fetch admin stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Calculate percentages for users by type
+  const totalUsers = stats?.total_users || 1;
+  const buyersPercentage = stats ? (stats.total_buyers / totalUsers) * 100 : 0;
+  const suppliersPercentage = stats ? (stats.total_suppliers / totalUsers) * 100 : 0;
+  const manufacturersPercentage = stats ? (stats.total_manufacturers / totalUsers) * 100 : 0;
+
+  // Calculate SVG circle dasharray for users by type chart
+  const circumference = 2 * Math.PI * 45; // r=45
+  const buyersDasharray = (buyersPercentage / 100) * circumference;
+  const suppliersDasharray = (suppliersPercentage / 100) * circumference;
+  const manufacturersDasharray = (manufacturersPercentage / 100) * circumference;
+  let offset = 0;
+
+  // Stage colors for deals
+  const stageColors: Record<string, string> = {
+    'Request Posted': 'bg-blue-500',
+    'Quotation Received': 'bg-purple-500',
+    'Payment Verified': 'bg-green-500',
+    'Quality Inspection': 'bg-yellow-500',
+    'Completed': 'bg-emerald-500',
+  };
 
   return (
     <DashboardLayout
@@ -84,143 +163,193 @@ export default function AdminDashboardPage() {
           <p className="text-gray-400">Platform overview and management controls</p>
         </div>
 
-        {/* Key Metrics Grid */}
+        {error && (
+          <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-red-400">Failed to load dashboard: {error}</p>
+          </div>
+        )}
+
+        {/* Key Metrics Grid - First Row */}
         <div>
           <h2 className="text-xl font-bold text-white mb-4">Key Metrics</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {statCards.map((stat, idx) => (
-              <div
-                key={idx}
-                className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors"
-              >
-                <p className="text-gray-400 text-sm mb-2">{stat.label}</p>
-                <p className="text-3xl font-bold text-white mb-2">{stat.value}</p>
-                {stat.change && (
-                  <p
-                    className={`text-sm ${
-                      stat.changeType === 'positive' ? 'text-green-400' : 'text-red-400'
-                    }`}
-                  >
-                    {stat.change}
-                  </p>
-                )}
-              </div>
-            ))}
+            {loading ? (
+              <>
+                {[1, 2, 3, 4].map((i) => (
+                  <StatCardSkeleton key={i} />
+                ))}
+              </>
+            ) : (
+              <>
+                {/* Total Users */}
+                <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                  <p className="text-gray-400 text-sm mb-2">Total Users</p>
+                  <p className="text-3xl font-bold text-white mb-2">{stats?.total_users?.toLocaleString()}</p>
+                </div>
+
+                {/* Active Deals */}
+                <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                  <p className="text-gray-400 text-sm mb-2">Active Deals</p>
+                  <p className="text-3xl font-bold text-white mb-2">{stats?.active_deals?.toLocaleString()}</p>
+                </div>
+
+                {/* Total RFQs */}
+                <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                  <p className="text-gray-400 text-sm mb-2">Total RFQs</p>
+                  <p className="text-3xl font-bold text-white mb-2">{stats?.total_rfqs?.toLocaleString()}</p>
+                </div>
+
+                {/* Total Trade Value */}
+                <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                  <p className="text-gray-400 text-sm mb-2">Total Trade Value</p>
+                  <p className="text-3xl font-bold text-white mb-2">{formatCurrency(stats?.total_trade_value || 0)}</p>
+                </div>
+              </>
+            )}
           </div>
+        </div>
+
+        {/* Key Metrics Grid - Second Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {loading ? (
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <StatCardSkeleton key={i} />
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Active Shipments */}
+              <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                <p className="text-gray-400 text-sm mb-2">Active Shipments</p>
+                <p className="text-3xl font-bold text-white mb-2">{stats?.active_shipments?.toLocaleString()}</p>
+              </div>
+
+              {/* Open Tickets */}
+              <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                <p className="text-gray-400 text-sm mb-2">Open Tickets</p>
+                <p className="text-3xl font-bold text-white mb-2">{stats?.open_tickets?.toLocaleString()}</p>
+              </div>
+
+              {/* Total Suppliers */}
+              <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                <p className="text-gray-400 text-sm mb-2">Total Suppliers</p>
+                <p className="text-3xl font-bold text-white mb-2">{stats?.total_suppliers?.toLocaleString()}</p>
+              </div>
+
+              {/* Total Buyers */}
+              <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors">
+                <p className="text-gray-400 text-sm mb-2">Total Buyers</p>
+                <p className="text-3xl font-bold text-white mb-2">{stats?.total_buyers?.toLocaleString()}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Users by Type */}
-          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Users by Type</h2>
-            <div className="flex items-center justify-center gap-8">
-              <div className="relative w-32 h-32">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#c41e3a" strokeWidth="10" strokeDasharray="84.8 141.4" />
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#d4a843" strokeWidth="10" strokeDasharray="42.3 141.4" strokeDashoffset="-84.8" />
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#6366f1" strokeWidth="10" strokeDasharray="14.3 141.4" strokeDashoffset="-127.1" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">1.2K</p>
-                    <p className="text-xs text-gray-400">users</p>
+          {loading ? (
+            <ChartSkeleton />
+          ) : (
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-6">Users by Type</h2>
+              <div className="flex items-center justify-center gap-8">
+                <div className="relative w-32 h-32">
+                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#c41e3a"
+                      strokeWidth="10"
+                      strokeDasharray={`${buyersDasharray} ${circumference}`}
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#d4a843"
+                      strokeWidth="10"
+                      strokeDasharray={`${suppliersDasharray} ${circumference}`}
+                      strokeDashoffset={`-${buyersDasharray}`}
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#6366f1"
+                      strokeWidth="10"
+                      strokeDasharray={`${manufacturersDasharray} ${circumference}`}
+                      strokeDashoffset={`-${buyersDasharray + suppliersDasharray}`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-white">{(totalUsers / 1000).toFixed(1)}K</p>
+                      <p className="text-xs text-gray-400">users</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-[#c41e3a] rounded-full" />
+                    <span className="text-gray-300 text-sm">
+                      Buyers: {buyersPercentage.toFixed(1)}% ({stats?.total_buyers?.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-[#d4a843] rounded-full" />
+                    <span className="text-gray-300 text-sm">
+                      Suppliers: {suppliersPercentage.toFixed(1)}% ({stats?.total_suppliers?.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-indigo-500 rounded-full" />
+                    <span className="text-gray-300 text-sm">
+                      Manufacturers: {manufacturersPercentage.toFixed(1)}% ({stats?.total_manufacturers?.toLocaleString()})
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-[#c41e3a] rounded-full" />
-                  <span className="text-gray-300 text-sm">Buyers: 60% (720)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-[#d4a843] rounded-full" />
-                  <span className="text-gray-300 text-sm">Suppliers: 30% (360)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-indigo-500 rounded-full" />
-                  <span className="text-gray-300 text-sm">Manufacturers: 10% (120)</span>
-                </div>
+            </div>
+          )}
+
+          {/* Recent Deals Summary */}
+          {loading ? (
+            <ChartSkeleton />
+          ) : (
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-6">Recent Deals</h2>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {stats?.recent_deals && stats.recent_deals.length > 0 ? (
+                  stats.recent_deals.slice(0, 5).map((deal) => (
+                    <div key={deal.id} className="p-3 bg-[#0c0f14] rounded border border-[#242830]">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-sm">{deal.reference}</p>
+                          <p className="text-gray-400 text-xs">{deal.product}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded text-white ${stageColors[deal.stage] || 'bg-gray-600'}`}>
+                          {deal.stage}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                        <p>Buyer: {deal.buyer}</p>
+                        <p>Supplier: {deal.supplier}</p>
+                      </div>
+                      <p className="text-[#d4a843] font-semibold text-sm mt-2">{formatCurrency(deal.value)}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-400 text-center py-4">No recent deals</p>
+                )}
               </div>
             </div>
-          </div>
-
-          {/* Deals by Stage */}
-          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Deals by Stage</h2>
-            <div className="space-y-4">
-              {[
-                { stage: 'Request Posted', count: 45, percentage: 13.2 },
-                { stage: 'Quotation Received', count: 78, percentage: 22.8 },
-                { stage: 'Payment Verified', count: 95, percentage: 27.7 },
-                { stage: 'Quality Inspection', count: 68, percentage: 19.9 },
-                { stage: 'Completed', count: 56, percentage: 16.4 },
-              ].map((item, idx) => (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-300 text-sm">{item.stage}</span>
-                    <span className="text-white font-semibold text-sm">{item.count}</span>
-                  </div>
-                  <div className="w-full bg-[#0c0f14] rounded-full h-2 border border-[#242830]">
-                    <div
-                      className="bg-[#c41e3a] h-2 rounded-full"
-                      style={{ width: `${item.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Monthly Deal Volume */}
-          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Monthly Deal Volume</h2>
-            <div className="flex items-end justify-between gap-2 h-48">
-              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => {
-                const heights = [45, 52, 48, 67, 71, 75, 68, 82, 78, 85, 92, 88];
-                return (
-                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                    <div
-                      className="w-full bg-gradient-to-t from-[#c41e3a] to-[#d4a843] rounded-t-lg transition-all hover:from-red-600 hover:to-yellow-500"
-                      style={{ height: `${heights[idx]}%` }}
-                      title={`${heights[idx]} deals`}
-                    ></div>
-                    <span className="text-gray-500 text-xs">{month}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Revenue by Sector */}
-          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Revenue by Sector</h2>
-            <div className="space-y-4">
-              {[
-                { sector: 'Steel & Metals', revenue: '$3.2M', percentage: 37.6 },
-                { sector: 'Electronics', revenue: '$2.1M', percentage: 24.7 },
-                { sector: 'Solar & Renewable', revenue: '$1.8M', percentage: 21.2 },
-                { sector: 'Machinery', revenue: '$0.9M', percentage: 10.6 },
-                { sector: 'Other', revenue: '$0.5M', percentage: 5.9 },
-              ].map((item, idx) => (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-300 text-sm">{item.sector}</span>
-                    <span className="text-white font-semibold text-sm">{item.revenue}</span>
-                  </div>
-                  <div className="w-full bg-[#0c0f14] rounded-full h-2 border border-[#242830]">
-                    <div
-                      className="bg-gradient-to-r from-[#c41e3a] to-[#d4a843] h-2 rounded-full"
-                      style={{ width: `${item.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Quick Links */}
@@ -242,55 +371,48 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-6">Recent Activity</h2>
-          <div className="space-y-3">
-            {[
-              { action: 'New User Registration', detail: 'John Smith (john.smith@example.com) registered as Buyer', time: '5 min ago', type: 'info' },
-              { action: 'Product Approved', detail: 'Electronic Capacitors from Shanghai Electronics approved', time: '15 min ago', type: 'success' },
-              { action: 'Payment Confirmed', detail: 'Deal #2024-045 payment verified by Rajhi Bank', time: '1h ago', type: 'success' },
-              { action: 'Quality Alert', detail: 'Inspection failed on shipment from Zhejiang (96% pass)', time: '2h ago', type: 'warning' },
-              { action: 'Dispute Opened', detail: 'Dispute #D-2024-012 opened for Deal #2024-038', time: '3h ago', type: 'alert' },
-            ].map((activity, idx) => {
-              const colors: Record<string, string> = {
-                info: 'border-l-blue-500 bg-blue-500/5',
-                success: 'border-l-green-500 bg-green-500/5',
-                warning: 'border-l-yellow-500 bg-yellow-500/5',
-                alert: 'border-l-red-500 bg-red-500/5',
-              };
-              return (
-                <div
-                  key={idx}
-                  className={`p-4 border-l-4 rounded bg-[#0c0f14] border-[#242830] ${colors[activity.type]}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-white mb-1">{activity.action}</p>
-                      <p className="text-gray-400 text-sm">{activity.detail}</p>
-                    </div>
-                    <span className="text-gray-600 text-xs whitespace-nowrap ml-4">{activity.time}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* System Alerts */}
-        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-6">System Alerts</h2>
-          <div className="space-y-3">
-            <div className="p-4 bg-blue-500/10 border-l-4 border-l-blue-500 rounded">
-              <p className="font-semibold text-blue-400 mb-1">ℹ️ Scheduled Maintenance</p>
-              <p className="text-gray-400 text-sm">Database maintenance scheduled for March 28, 2:00 AM - 4:00 AM UTC</p>
-            </div>
-            <div className="p-4 bg-yellow-500/10 border-l-4 border-l-yellow-500 rounded">
-              <p className="font-semibold text-yellow-400 mb-1">⚠️ High System Load</p>
-              <p className="text-gray-400 text-sm">Platform is experiencing 78% CPU usage. Consider scaling infrastructure.</p>
+        {/* Recent Users */}
+        {loading ? (
+          <ChartSkeleton />
+        ) : (
+          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Recent Users</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#242830]">
+                    <th className="text-left text-gray-400 font-semibold py-3 px-4">Name</th>
+                    <th className="text-left text-gray-400 font-semibold py-3 px-4">Email</th>
+                    <th className="text-left text-gray-400 font-semibold py-3 px-4">Type</th>
+                    <th className="text-left text-gray-400 font-semibold py-3 px-4">Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats?.recent_users && stats.recent_users.length > 0 ? (
+                    stats.recent_users.map((user) => (
+                      <tr key={user.id} className="border-b border-[#242830] hover:bg-[#242830]/50 transition-colors">
+                        <td className="text-white py-3 px-4">{user.name}</td>
+                        <td className="text-gray-400 py-3 px-4">{user.email}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-1 rounded text-xs font-semibold bg-[#c41e3a]/20 text-[#c41e3a]">
+                            {user.type}
+                          </span>
+                        </td>
+                        <td className="text-gray-400 py-3 px-4">{user.joined}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="text-gray-400 text-center py-4">
+                        No recent users
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

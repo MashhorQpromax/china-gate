@@ -66,10 +66,13 @@ export default function LoginPage() {
         throw new Error(result.error || 'Login failed');
       }
 
-      // Store session token
+      // Store session token in localStorage and cookie
       if (result.session?.access_token) {
         localStorage.setItem('access_token', result.session.access_token);
+        localStorage.setItem('refresh_token', result.session.refresh_token);
         localStorage.setItem('user_profile', JSON.stringify(result.user.profile));
+        // Set cookie for middleware auth (httpOnly not possible from client, but needed for SSR)
+        document.cookie = `access_token=${result.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       }
 
       // Redirect based on account type
