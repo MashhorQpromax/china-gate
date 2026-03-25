@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #c41e3a;
+  --color-gold: #d4a843;
+  --color-black: #0c0f14;
+  --color-dark: #1a1d23;
+  --color-dark-light: #242830;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-[#0c0f14] text-white antialiased;
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Arabic font support */
+[dir="rtl"] {
+  font-family: var(--font-ibm-plex-arabic), system-ui, -apple-system, sans-serif;
+}
+
+/* Smooth animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1d23;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #242830;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4a843;
+}
+
+/* Selection styling */
+::selection {
+  background-color: #c41e3a;
+  color: white;
+}
+
+/* Focus visible styling */
+:focus-visible {
+  outline: 2px solid #d4a843;
+  outline-offset: 2px;
+}
+
+/* Utility animations */
+.animate-in {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(26, 29, 35, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Loading spinner */
+.spinner {
+  @apply inline-block w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-[#c41e3a] to-[#d4a843] bg-clip-text text-transparent;
+}
+
+/* Dark theme base */
+.dark {
+  @apply bg-[#0c0f14] text-white;
+}
+
+/* Responsive container utilities */
+@media (max-width: 640px) {
+  body {
+    @apply px-4;
+  }
+}

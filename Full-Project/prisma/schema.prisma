@@ -1,0 +1,1344 @@
+// Prisma schema for CHINA GATE Platform
+// A B2B platform connecting Chinese factories with Gulf businesses
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================================
+// ENUMS - User & Authentication
+// ============================================================================
+
+enum UserRole {
+  BUYER
+  SUPPLIER
+  MANUFACTURER
+  ADMIN
+}
+
+enum Language {
+  EN
+  AR
+  ZH
+}
+
+enum AccountProvider {
+  GOOGLE
+  GITHUB
+  EMAIL
+}
+
+// ============================================================================
+// ENUMS - Company Profiles
+// ============================================================================
+
+enum GulfCountry {
+  SA  // Saudi Arabia
+  AE  // United Arab Emirates
+  KW  // Kuwait
+  QA  // Qatar
+  BH  // Bahrain
+  OM  // Oman
+}
+
+enum FactoryType {
+  MANUFACTURER
+  TRADING
+  BOTH
+}
+
+enum ManufacturerSector {
+  PETROCHEMICAL
+  AUTOMOTIVE
+  CONSTRUCTION
+  FOOD_BEVERAGE
+  TEXTILE
+  MACHINERY
+  ELECTRONICS
+  METALS
+  CHEMICALS
+  OTHER
+}
+
+// ============================================================================
+// ENUMS - Team & Workflow
+// ============================================================================
+
+enum CompanyMemberRole {
+  OWNER
+  ADMIN
+  CREATOR
+  REVIEWER
+  APPROVER
+  VIEWER
+  FINANCE
+}
+
+enum OperationType {
+  PURCHASE
+  LC
+  LG
+  DEAL
+  PAYMENT
+  AGREEMENT
+}
+
+enum WorkflowStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum WorkflowAction {
+  APPROVE
+  REJECT
+  REQUEST_CHANGE
+}
+
+// ============================================================================
+// ENUMS - Marketplace
+// ============================================================================
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  DISCONTINUED
+}
+
+enum PurchaseRequestStatus {
+  OPEN
+  RECEIVING_QUOTES
+  CLOSED
+  AWARDED
+}
+
+enum QuotationStatus {
+  PENDING
+  ACCEPTED
+  NEGOTIATING
+  REJECTED
+  EXPIRED
+}
+
+enum Incoterm {
+  EXW    // Ex Works
+  FCA    // Free Carrier
+  CPT    // Carriage Paid To
+  CIP    // Carriage and Insurance Paid To
+  DAP    // Delivery at Place
+  DPU    // Delivery at Place Unloaded
+  DDP    // Delivery Duty Paid
+  FAS    // Free Alongside Ship
+  FOB    // Free on Board
+  CFR    // Cost and Freight
+  CIF    // Cost, Insurance and Freight
+}
+
+enum Currency {
+  USD
+  CNY
+  SAR
+  AED
+  KWD
+  QAR
+  BHD
+  OMR
+  EUR
+  GBP
+}
+
+// ============================================================================
+// ENUMS - Shipping
+// ============================================================================
+
+enum ShippingType {
+  SEA
+  AIR
+  LAND
+  MULTIMODAL
+}
+
+enum ShipmentStatus {
+  BOOKED
+  PICKED_UP
+  AT_PORT
+  LOADED
+  IN_TRANSIT
+  ARRIVED
+  CUSTOMS
+  DELIVERED
+  RETURNED
+}
+
+// ============================================================================
+// ENUMS - Manufacturing Partnerships
+// ============================================================================
+
+enum PartnershipStatus {
+  DRAFT
+  OPEN
+  NEGOTIATING
+  ACTIVE
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum TrainingDirection {
+  CN_TO_SA  // China to Saudi Arabia (training in China)
+  SA_TO_CN  // Saudi Arabia to China (training in Saudi Arabia)
+}
+
+enum TrainingStatus {
+  PLANNED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AccommodationType {
+  HOTEL
+  DORMITORY
+  FACTORY
+  NONE
+}
+
+enum LaborLendingStatus {
+  DRAFT
+  PROPOSED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum VisaStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ============================================================================
+// ENUMS - Banking
+// ============================================================================
+
+enum BankAccountStatus {
+  DEMO
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum TransactionType {
+  WIRE
+  LC_PAYMENT
+  LG_FEE
+  CURRENCY_EXCHANGE
+  REFUND
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ============================================================================
+// ENUMS - LC/LG
+// ============================================================================
+
+enum LCType {
+  IRREVOCABLE
+  CONFIRMED
+  TRANSFERABLE
+  BACK_TO_BACK
+  STANDBY
+  REVOLVING
+  REVOCABLE
+}
+
+enum LGType {
+  PERFORMANCE
+  ADVANCE_PAYMENT
+  BID
+  RETENTION
+  PAYMENT
+  CUSTOMS
+}
+
+enum LCLGStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  PENDING_ACCEPTANCE
+  ACCEPTED
+  AMENDED
+  SHIPPED
+  PRESENTED
+  DISCREPANCY
+  ACCEPTED_WITH_WAIVER
+  REJECTED
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+// ============================================================================
+// ENUMS - Quality
+// ============================================================================
+
+enum QualityStage {
+  PRE_PRODUCTION
+  MATERIAL_INSPECTION
+  IN_PROCESS_INSPECTION
+  FIRST_ARTICLE_INSPECTION
+  FINAL_INSPECTION
+  PACKAGING_INSPECTION
+  CUSTOMS_INSPECTION
+  DELIVERY_INSPECTION
+  ACCEPTANCE_INSPECTION
+  DISPUTE_RESOLUTION
+}
+
+enum InspectionResult {
+  PASS
+  CONDITIONAL
+  FAIL
+}
+
+enum DisputeResolution {
+  ACCEPTED
+  PARTIAL_REFUND
+  FULL_REFUND
+  REPLACEMENT
+  NEGOTIATED
+  ARBITRATION
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  AWAITING_SUPPLIER_RESPONSE
+  RESOLVED
+  ESCALATED
+}
+
+// ============================================================================
+// ENUMS - Deals
+// ============================================================================
+
+enum DealStage {
+  QUOTATION_NEGOTIATION
+  PURCHASE_ORDER
+  LC_ISSUANCE
+  MANUFACTURING
+  QUALITY_CONTROL
+  PACKAGING
+  PORT_LOADING
+  SHIPPED
+  IN_TRANSIT
+  CUSTOMS_CLEARANCE
+  DELIVERY
+  FINAL_INSPECTION
+  PAYMENT_SETTLEMENT
+  DISPUTE_HANDLING
+  COMPLETED
+}
+
+enum DealStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+// ============================================================================
+// ENUMS - Messaging & Notifications
+// ============================================================================
+
+enum MessageType {
+  TEXT
+  IMAGE
+  PDF
+  QUOTATION
+  PURCHASE_ORDER
+  INVOICE
+  SHIPMENT_UPDATE
+  QUALITY_REPORT
+}
+
+enum NotificationType {
+  DEAL_UPDATE
+  MESSAGE
+  QUOTATION_RECEIVED
+  QUOTATION_EXPIRED
+  SHIPMENT_UPDATE
+  QUALITY_ALERT
+  PAYMENT_REMINDER
+  WORKFLOW_ACTION_REQUIRED
+  PARTNERSHIP_REQUEST
+  SYSTEM_ALERT
+}
+
+// ============================================================================
+// ENUMS - Customs
+// ============================================================================
+
+enum CustomsStatus {
+  PENDING
+  UNDER_REVIEW
+  CLEARED
+  HELD
+  REJECTED
+  RELEASED_ON_BOND
+}
+
+// ============================================================================
+// USER & AUTHENTICATION MODELS
+// ============================================================================
+
+model User {
+  id                    String     @id @default(cuid())
+  email                 String     @unique
+  phone                 String?
+  passwordHash          String?
+  name                  String
+  role                  UserRole
+  avatar                String?
+  languagePreference    Language   @default(EN)
+  lastLogin             DateTime?
+  emailVerified         Boolean    @default(false)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  // Relations
+  accounts              Account[]
+  sessions              Session[]
+  verificationTokens    VerificationToken[]
+
+  buyerProfile          BuyerProfile?
+  supplierProfile       SupplierProfile?
+  manufacturerProfile   ManufacturerProfile?
+
+  companyMembers        CompanyMember[]
+
+  sentMessages          Message[] @relation("SenderMessages")
+  receivedMessages      Message[] @relation("ReceiverMessages")
+
+  notifications         Notification[]
+  ratingsGiven          Rating[] @relation("RaterUser")
+  ratingsReceived       Rating[] @relation("RatedUser")
+
+  workflowActionsCreated WorkflowAction[] @relation("ActionCreator")
+
+  purchaseRequestsCreated PurchaseRequest[]
+  quotationsCreated     Quotation[]
+
+  dealsAsBuyer          Deal[] @relation("BuyerDeals")
+  dealsAsSupplier       Deal[] @relation("SupplierDeals")
+
+  partnershipRequestsCreated PartnershipRequest[]
+  partnershipOffersCreated PartnershipOffer[]
+
+  qualityInspectionsCreated QualityInspection[]
+  disputesOpened        Dispute[] @relation("DisputeOpener")
+
+  transactions          Transaction[]
+
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Account {
+  id                 String     @id @default(cuid())
+  userId             String
+  provider           AccountProvider
+  providerAccountId  String
+  refreshToken       String?
+  accessToken        String?
+  expiresAt          Int?
+  tokenType          String?
+  scope              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id                String     @id @default(cuid())
+  sessionToken      String     @unique
+  userId            String
+  expires           DateTime
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+model VerificationToken {
+  id                String     @id @default(cuid())
+  userId            String
+  token             String     @unique
+  type              String     // "EMAIL_VERIFICATION", "PASSWORD_RESET", "PHONE_VERIFICATION"
+  expiresAt         DateTime
+  createdAt         DateTime   @default(now())
+
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// COMPANY PROFILES
+// ============================================================================
+
+model BuyerProfile {
+  id                        String     @id @default(cuid())
+  userId                    String     @unique
+  companyName               String
+  country                   GulfCountry
+  city                      String
+  commercialRegistration    String
+  sector                    String
+  logo                      String?
+  companyWebsite            String?
+  yearsInBusiness           Int?
+  businessDescription       String?
+  certifications            String[]   @default([])
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+
+  user                      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseRequests          PurchaseRequest[]
+  deals                     Deal[]
+
+  @@index([country])
+  @@index([sector])
+  @@index([createdAt])
+}
+
+model SupplierProfile {
+  id                    String     @id @default(cuid())
+  userId                String     @unique
+  companyNameEn         String
+  companyNameCn         String
+  contactPerson         String
+  province              String
+  businessLicense       String
+  factoryType           FactoryType
+  mainProducts          String[]
+  phone                 String
+  wechatId              String?
+  alibabaUrl            String?
+  logo                  String?
+  companyWebsite        String?
+  productionCapacity    String?
+  certifications        String[]   @default([])
+  yearsInBusiness       Int?
+  totalWorkers          Int?
+  verificationStatus    String     @default("PENDING") // PENDING, VERIFIED, REJECTED
+  verifiedAt            DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products              Product[]
+  quotations            Quotation[]
+  deals                 Deal[] @relation("SupplierDeals")
+  partnershipOffers     PartnershipOffer[]
+  laborLendings         LaborLending[] @relation("LendingSupplier")
+
+  @@index([province])
+  @@index([factoryType])
+  @@index([verificationStatus])
+  @@index([createdAt])
+}
+
+model ManufacturerProfile {
+  id                String     @id @default(cuid())
+  userId            String     @unique
+  factoryName       String
+  industrialLicense String
+  modonCity         String
+  sector            ManufacturerSector
+  currentCapacity   Int
+  maxCapacity       Int
+  workforce         Int
+  products          String[]
+  certifications    String[]   @default([])
+  yearsInOperation  Int?
+  factoryImages     String[]   @default([])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnershipRequests PartnershipRequest[]
+  laborLendings     LaborLending[] @relation("LendingManufacturer")
+
+  @@index([modonCity])
+  @@index([sector])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// COMPANY STRUCTURE & TEAM
+// ============================================================================
+
+model Company {
+  id                String     @id @default(cuid())
+  name              String
+  type              String     // "BUYER", "SUPPLIER", "MANUFACTURER"
+  registrationNumber String
+  country           String
+  logo              String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  members           CompanyMember[]
+  workflowConfigs   WorkflowConfig[]
+  bankAccounts      BankAccount[]
+
+  @@index([type])
+  @@index([country])
+}
+
+model CompanyMember {
+  id                String     @id @default(cuid())
+  companyId         String
+  userId            String
+  role              CompanyMemberRole
+  invitedBy         String?
+  joinedAt          DateTime   @default(now())
+  status            String     @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([role])
+}
+
+// ============================================================================
+// WORKFLOW & PROCESS AUTOMATION
+// ============================================================================
+
+model WorkflowConfig {
+  id                      String     @id @default(cuid())
+  companyId               String
+  operationType           OperationType
+  stages                  Json       // Array of stage objects with name, approvers, etc.
+  autoApproveAfterDays    Int?
+  requireNoteOnReject     Boolean    @default(true)
+  notifyOnEachStage       Boolean    @default(true)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  company                 Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instances               WorkflowInstance[]
+
+  @@unique([companyId, operationType])
+  @@index([companyId])
+  @@index([operationType])
+}
+
+model WorkflowInstance {
+  id                String     @id @default(cuid())
+  configId          String
+  referenceId       String     // ID of the resource (Deal, LC, etc.)
+  referenceType     String     // "DEAL", "LC", "LG", "PAYMENT"
+  currentStage      Int        @default(0)
+  status            WorkflowStatus @default(PENDING)
+  createdBy         String
+  startedAt         DateTime   @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  config            WorkflowConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  actions           WorkflowAction[]
+
+  deals             Deal[]
+  lettersOfCredit   LetterOfCredit[]
+  lettersOfGuarantee LetterOfGuarantee[]
+
+  @@index([configId])
+  @@index([referenceId])
+  @@index([referenceType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WorkflowAction {
+  id                String     @id @default(cuid())
+  instanceId        String
+  stage             Int
+  userId            String
+  action            WorkflowAction @relation(name: "ActionType")
+  notes             String?
+  createdAt         DateTime   @default(now())
+
+  instance          WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  actionBy          User       @relation("ActionCreator", fields: [userId], references: [id])
+
+  @@index([instanceId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MARKETPLACE - PRODUCTS & REQUESTS
+// ============================================================================
+
+model Product {
+  id                        String     @id @default(cuid())
+  supplierId                String
+  nameEn                    String
+  nameAr                    String
+  nameCn                    String
+  description               String     @db.Text
+  category                  String
+  images                    String[]   @default([])
+  video                     String?
+  fobPriceMin               Float
+  fobPriceMax               Float
+  currency                  Currency   @default(USD)
+  moq                       Int        // Minimum Order Quantity
+  leadTimeDays              Int
+  portOfLoading             String
+  incoterm                  Incoterm   @default(FOB)
+  certifications            String[]   @default([])
+  monthlyCapacity           Int?
+  samplesAvailable          Boolean    @default(false)
+  hsCode                    String?
+  availableForPartnership   Boolean    @default(false)
+  availableForLaborLending  Boolean    @default(false)
+  status                    ProductStatus @default(ACTIVE)
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+
+  supplier                  SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  qualityJourneys           QualityJourney[]
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseRequest {
+  id                    String     @id @default(cuid())
+  buyerId               String
+  title                 String
+  description           String     @db.Text
+  category              String
+  quantity              Int
+  budget                Float
+  currency              Currency   @default(USD)
+  preferredIncoterm     Incoterm?
+  preferredShipper      String?
+  destinationPort       String?
+  requiredDate          DateTime?
+  specs                 Json?      // Detailed specifications
+  certifications        String[]   @default([])
+  images                String[]   @default([])
+  status                PurchaseRequestStatus @default(OPEN)
+  createdBy             String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  buyer                 BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  quotations            Quotation[]
+  deals                 Deal[]
+
+  @@index([buyerId])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Quotation {
+  id                    String     @id @default(cuid())
+  purchaseRequestId     String
+  supplierId            String
+  pricePerUnit          Float
+  availableQuantity     Int
+  leadTimeDays          Int
+  incoterm              Incoterm
+  paymentTerms          String?
+  shippingOptions       Json?      // Array of shipping method options
+  estimatedShippingCost Float?
+  currency              Currency   @default(USD)
+  notes                 String?    @db.Text
+  attachments           String[]   @default([])
+  validUntil            DateTime
+  status                QuotationStatus @default(PENDING)
+  createdBy             String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  purchaseRequest       PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  supplier              SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  deals                 Deal[]
+
+  @@unique([purchaseRequestId, supplierId])
+  @@index([purchaseRequestId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([validUntil])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// SHIPPING & LOGISTICS
+// ============================================================================
+
+model ShippingCompany {
+  id                String     @id @default(cuid())
+  name              String
+  type              ShippingType
+  routes            Json?      // Array of route objects
+  transitDays       String?
+  logo              String?
+  rating            Float      @default(0)
+  ratingCount       Int        @default(0)
+  notes             String?    @db.Text
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  shipments         Shipment[]
+
+  @@index([type])
+  @@index([rating])
+  @@index([isActive])
+}
+
+model Shipment {
+  id                    String     @id @default(cuid())
+  dealId                String
+  shippingCompanyId     String
+  type                  ShippingType
+  trackingNumber        String?
+  containerNumber       String?
+  status                ShipmentStatus @default(BOOKED)
+  currentLocation       String?
+  eta                   DateTime?
+  cargoInsurance        Boolean    @default(false)
+  preShipmentInspection Boolean    @default(false)
+  timeline              Json?      // Timeline events: picked_up, at_port, loaded, etc.
+  internalNotes         String?    @db.Text
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  deal                  Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  shippingCompany       ShippingCompany @relation(fields: [shippingCompanyId], references: [id])
+  customsClearance      CustomsClearance?
+
+  @@index([dealId])
+  @@index([shippingCompanyId])
+  @@index([status])
+  @@index([trackingNumber])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MANUFACTURING PARTNERSHIPS
+// ============================================================================
+
+model PartnershipRequest {
+  id                    String     @id @default(cuid())
+  manufacturerId        String
+  productDescription    String     @db.Text
+  specifications        String[]   @default([])
+  quantity              Int
+  currentCapacity       Int
+  gap                   Int        // Gap to be filled (quantity - currentCapacity)
+  qualityStandards      String[]   @default([])
+  duration              String?    // e.g., "6 months", "1 year"
+  crossTraining         Boolean    @default(false)
+  laborLending          Boolean    @default(false)
+  oem                   Boolean    @default(false)
+  status                PartnershipStatus @default(OPEN)
+  createdBy             String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  manufacturer          ManufacturerProfile @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  offers                PartnershipOffer[]
+
+  @@index([manufacturerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PartnershipOffer {
+  id                    String     @id @default(cuid())
+  requestId             String
+  supplierId            String
+  capacityOffered       Int
+  pricePerUnit          Float
+  currency              Currency   @default(USD)
+  startDays             Int        // Days until start
+  trainingReady         Boolean    @default(false)
+  laborAvailable        Int?
+  certifications        String[]   @default([])
+  mediaUrls             String[]   @default([])
+  notes                 String?    @db.Text
+  status                PartnershipStatus @default(DRAFT)
+  createdBy             String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  request               PartnershipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  supplier              SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  trainingPrograms      TrainingProgram[]
+  laborLendings         LaborLending[]
+
+  @@unique([requestId, supplierId])
+  @@index([requestId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TrainingProgram {
+  id                    String     @id @default(cuid())
+  partnershipOfferId    String
+  direction             TrainingDirection
+  duration              String     // e.g., "2 weeks", "1 month"
+  trainees              Int
+  field                 String     // e.g., "Quality Control", "Manufacturing Process"
+  language              Language   @default(EN)
+  includesAccommodation Boolean    @default(false)
+  accommodationType     AccommodationType @default(NONE)
+  certification         String?
+  status                TrainingStatus @default(PLANNED)
+  startDate             DateTime?
+  endDate               DateTime?
+  notes                 String?    @db.Text
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  partnershipOffer      PartnershipOffer @relation(fields: [partnershipOfferId], references: [id], onDelete: Cascade)
+
+  @@index([partnershipOfferId])
+  @@index([direction])
+  @@index([status])
+}
+
+model LaborLending {
+  id                    String     @id @default(cuid())
+  partnershipOfferId    String
+  supplierId            String
+  manufacturerId        String
+  specialization        String     // e.g., "Quality Inspector", "Technician"
+  experience            Int        // Years of experience
+  certifications        String[]   @default([])
+  languages             String[]   @default([])
+  duration              String?    // e.g., "3 months"
+  monthlyCost           Float
+  currency              Currency   @default(USD)
+  accommodation         AccommodationType @default(HOTEL)
+  visaStatus            VisaStatus @default(PENDING)
+  visaExpiry            DateTime?
+  status                LaborLendingStatus @default(DRAFT)
+  startDate             DateTime?
+  endDate               DateTime?
+  notes                 String?    @db.Text
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  partnershipOffer      PartnershipOffer @relation(fields: [partnershipOfferId], references: [id], onDelete: Cascade)
+  supplier              SupplierProfile @relation("LendingSupplier", fields: [supplierId], references: [id], onDelete: Cascade)
+  manufacturer          ManufacturerProfile @relation("LendingManufacturer", fields: [manufacturerId], references: [id], onDelete: Cascade)
+
+  @@index([partnershipOfferId])
+  @@index([supplierId])
+  @@index([manufacturerId])
+  @@index([visaStatus])
+  @@index([status])
+}
+
+// ============================================================================
+// BANKING & TRANSACTIONS
+// ============================================================================
+
+model BankAccount {
+  id                String     @id @default(cuid())
+  companyId         String
+  bankName          String
+  accountNumber     String?    // Encrypted/Masked
+  balance           Float      @default(0)
+  currency          Currency   @default(USD)
+  status            BankAccountStatus @default(DEMO)
+  isDefault         Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactionsFrom  Transaction[] @relation("FromAccount")
+  transactionsTo    Transaction[] @relation("ToAccount")
+
+  @@index([companyId])
+  @@index([status])
+  @@index([isDefault])
+}
+
+model Transaction {
+  id                String     @id @default(cuid())
+  accountId         String
+  type              TransactionType
+  amount            Float
+  currency          Currency
+  fromAccountId     String?
+  toAccountId       String?
+  reference         String?    // Reference number or invoice ID
+  status            TransactionStatus @default(PENDING)
+  dealId            String?    // Optional: linked deal
+  notes             String?    @db.Text
+  userId            String
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  account           BankAccount @relation(fields: [accountId], references: [id])
+  fromAccount       BankAccount? @relation("FromAccount", fields: [fromAccountId], references: [id])
+  toAccount         BankAccount? @relation("ToAccount", fields: [toAccountId], references: [id])
+  user              User       @relation(fields: [userId], references: [id])
+
+  @@index([accountId])
+  @@index([type])
+  @@index([status])
+  @@index([dealId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// LETTER OF CREDIT & GUARANTEE
+// ============================================================================
+
+model LetterOfCredit {
+  id                    String     @id @default(cuid())
+  reference             String     @unique  // Auto-generated reference number
+  dealId                String
+  applicant             String     // Buyer name/entity
+  applicantBank         String
+  beneficiary           String     // Supplier name/entity
+  beneficiaryBank       String
+  amount                Float
+  currency              Currency   @default(USD)
+  type                  LCType
+  paymentTerms          String?    // e.g., "At sight", "30 days after B/L"
+  shipmentDate          DateTime?
+  expiryDate            DateTime
+  partialShipment       Boolean    @default(false)
+  transshipment         Boolean    @default(false)
+  portOfLoading         String
+  portOfDischarge       String
+  incoterm              Incoterm   @default(FOB)
+  goodsDescription      String     @db.Text
+  documents             Json?      // Array of required documents
+  status                LCLGStatus @default(DRAFT)
+  workflowInstanceId    String?
+  advisingBank          String?
+  nomineeBank           String?
+  amendment             Json?      // Amendment details if amended
+  presentationDate      DateTime?
+  paymentDate           DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  deal                  Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  workflowInstance      WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([dealId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([createdAt])
+}
+
+model LetterOfGuarantee {
+  id                    String     @id @default(cuid())
+  reference             String     @unique
+  dealId                String
+  applicant             String
+  applicantBank         String
+  beneficiary           String
+  beneficiaryBank       String
+  amount                Float
+  currency              Currency   @default(USD)
+  type                  LGType
+  expiryDate            DateTime
+  status                LCLGStatus @default(DRAFT)
+  workflowInstanceId    String?
+  guaranteeConditions   String?    @db.Text
+  documents             Json?
+  issuanceDate          DateTime?
+  paymentDate           DateTime?
+  claimSubmitted        Boolean    @default(false)
+  claimAmount           Float?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  deal                  Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  workflowInstance      WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([dealId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// QUALITY MANAGEMENT
+// ============================================================================
+
+model QualityJourney {
+  id                    String     @id @default(cuid())
+  dealId                String
+  productId             String
+  stages                Json       // Array of quality stages with details
+  currentStage          Int        @default(0)
+  overallStatus         String     @default("IN_PROGRESS")
+  startDate             DateTime   @default(now())
+  completedDate         DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  deal                  Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  product               Product    @relation(fields: [productId], references: [id])
+  inspections           QualityInspection[]
+  disputes              Dispute[]
+
+  @@index([dealId])
+  @@index([productId])
+  @@index([overallStatus])
+}
+
+model QualityInspection {
+  id                    String     @id @default(cuid())
+  journeyId             String
+  stage                 Int
+  inspectorName         String
+  result                InspectionResult
+  defectRate            Float?     // Percentage
+  images                String[]   @default([])
+  report                String?    @db.Text
+  notes                 String?    @db.Text
+  inspectionDate        DateTime   @default(now())
+  createdBy             String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  journey               QualityJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  creatorUser           User       @relation(fields: [createdBy], references: [id])
+
+  @@index([journeyId])
+  @@index([stage])
+  @@index([result])
+}
+
+model Dispute {
+  id                    String     @id @default(cuid())
+  journeyId             String
+  openedBy              String
+  reason                String
+  evidence              String[]   @default([])
+  supplierResponse      String?    @db.Text
+  resolution            DisputeResolution?
+  compensationAmount    Float?
+  status                DisputeStatus @default(OPEN)
+  auditLog              Json?
+  notes                 String?    @db.Text
+  resolutionDate        DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  journey               QualityJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  opener                User       @relation("DisputeOpener", fields: [openedBy], references: [id])
+
+  @@index([journeyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// DEALS
+// ============================================================================
+
+model Deal {
+  id                    String     @id @default(cuid())
+  buyerId               String
+  supplierId            String
+  purchaseRequestId     String?
+  quotationId           String?
+  stage                 DealStage  @default(QUOTATION_NEGOTIATION)
+  status                DealStatus @default(DRAFT)
+  totalAmount           Float
+  currency              Currency   @default(USD)
+  shippingMethod        ShippingType @default(SEA)
+  agreement             String?    @db.Text
+  workflowInstanceId    String?
+  lcId                  String?
+  lgId                  String?
+  shipmentId            String?
+  qualityJourneyId      String?
+  finalAcceptance       Boolean    @default(false)
+  finalAcceptanceDate   DateTime?
+  rating                Float?
+  notes                 String?    @db.Text
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  buyer                 BuyerProfile @relation("BuyerDeals", fields: [buyerId], references: [id], onDelete: Cascade)
+  supplier              SupplierProfile @relation("SupplierDeals", fields: [supplierId], references: [id], onDelete: Cascade)
+  purchaseRequest       PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  quotation             Quotation? @relation(fields: [quotationId], references: [id])
+  workflowInstance      WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
+  lettersOfCredit       LetterOfCredit[]
+  lettersOfGuarantee    LetterOfGuarantee[]
+  shipment              Shipment?
+  qualityJourney        QualityJourney?
+  messages              Message[] @relation("DealMessages")
+  ratings               Rating[]
+  transactions          Transaction[]
+
+  @@index([buyerId])
+  @@index([supplierId])
+  @@index([stage])
+  @@index([status])
+  @@index([purchaseRequestId])
+  @@index([quotationId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MESSAGING & NOTIFICATIONS
+// ============================================================================
+
+model Message {
+  id                    String     @id @default(cuid())
+  senderId              String
+  receiverId            String
+  dealId                String?
+  content               String     @db.Text
+  type                  MessageType @default(TEXT)
+  translatedContent     Json?      // Multilingual translations
+  attachmentUrl         String?
+  readAt                DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  sender                User       @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver              User       @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  deal                  Deal? @relation("DealMessages", fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([dealId])
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model Notification {
+  id                    String     @id @default(cuid())
+  userId                String
+  type                  NotificationType
+  title                 String
+  content               String     @db.Text
+  referenceId           String?
+  referenceType         String?    // "DEAL", "QUOTATION", "SHIPMENT", etc.
+  read                  Boolean    @default(false)
+  readAt                DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// RATINGS & REVIEWS
+// ============================================================================
+
+model Rating {
+  id                    String     @id @default(cuid())
+  dealId                String
+  fromUserId            String
+  toUserId              String
+  quality               Int        // 1-5
+  delivery              Int        // 1-5
+  communication         Int        // 1-5
+  price                 Int        // 1-5
+  overall               Float      // Average of above
+  review                String?    @db.Text
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  deal                  Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  rater                 User       @relation("RaterUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  rated                 User       @relation("RatedUser", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, fromUserId])
+  @@index([dealId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([overall])
+}
+
+// ============================================================================
+// CUSTOMS CLEARANCE
+// ============================================================================
+
+model CustomsClearance {
+  id                    String     @id @default(cuid())
+  shipmentId            String     @unique
+  declarationNumber     String?
+  hsCode                String
+  cifValue              Float      // Cost, Insurance, Freight value
+  dutyRate              Float      // Percentage
+  taxRate               Float      // Percentage
+  totalDuties           Float
+  country               String     // Destination country
+  documents             Json?      // Array of customs documents
+  status                CustomsStatus @default(PENDING)
+  notes                 String?    @db.Text
+  clearanceDate         DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  shipment              Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+  @@index([status])
+}
