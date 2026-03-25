@@ -50,11 +50,46 @@ export default function QuotationForm({ requestId, onClose }: QuotationFormProps
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Quotation submitted:', formData);
-    if (onClose) onClose();
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/rfq/${requestId}/quotations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId: 'current-user-id',
+          unitPrice: parseFloat(formData.pricePerUnit),
+          quantity: parseInt(formData.availableQuantity),
+          totalPrice: parseFloat(formData.pricePerUnit) * parseInt(formData.availableQuantity) + (parseFloat(formData.estimatedShippingCost) || 0),
+          incoterm: formData.incoterm,
+          paymentTerms: formData.paymentTerms,
+          leadTime: parseInt(formData.leadTimeDays),
+          leadTimeUnit: 'days',
+          estimatedShippingCost: parseFloat(formData.estimatedShippingCost) || 0,
+          shippingMethod: formData.shippingCompany,
+          validUntil: formData.validityDate,
+          notes: formData.notes || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Failed to submit quotation');
+        return;
+      }
+
+      if (onClose) onClose();
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const totalPrice = formData.pricePerUnit && formData.availableQuantity
@@ -229,20 +264,29 @@ export default function QuotationForm({ requestId, onClose }: QuotationFormProps
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-600 bg-opacity-20 border border-red-600 border-opacity-30 rounded-lg p-3">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Submit Button */}
       <div className="flex gap-3 pt-4 border-t border-[#242830]">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors font-semibold"
+          disabled={submitting}
+          className="flex-1 px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors font-semibold disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="flex-1 px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+          disabled={submitting}
+          className="flex-1 px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50"
         >
-          Submit Quotation
+          {submitting ? 'Submitting...' : 'Submit Quotation'}
         </button>
       </div>
     </form>

@@ -1,146 +1,148 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import RequestCard from '@/components/marketplace/RequestCard';
+import Link from 'next/link';
 
-interface PurchaseRequest {
+interface Category {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  slug: string;
+}
+
+interface RFQ {
   id: string;
   title: string;
   description: string;
-  category: string;
+  product_name: string;
   quantity: number;
-  quantityUnit: string;
-  budget: number;
+  unit_of_measure: string;
+  target_price: number | null;
+  max_budget: number | null;
   currency: string;
-  deadline: Date;
-  buyerCountry: string;
-  buyerName: string;
-  status: 'Open' | 'Receiving Quotes' | 'Closed' | 'Awarded';
-  quotationCount: number;
+  status: string;
+  quotation_count: number;
+  expires_at: string;
+  created_at: string;
+  categories: { name_en: string; name_ar: string } | null;
+  profiles: { full_name_en: string; company_name: string; country: string } | null;
 }
-
-const demoPurchaseRequests: PurchaseRequest[] = [
-  {
-    id: 'req-001',
-    title: 'Carbon Steel Sheets - Large Volume',
-    description: 'Need 50,000 tons of carbon steel flat sheets for construction projects',
-    category: 'Steel & Metals',
-    quantity: 50000,
-    quantityUnit: 'tons',
-    budget: 25000000,
-    currency: 'USD',
-    deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    buyerCountry: 'Saudi Arabia',
-    buyerName: 'Al-Rajhi Trading Company',
-    status: 'Receiving Quotes',
-    quotationCount: 5,
-  },
-  {
-    id: 'req-002',
-    title: 'Electronic Components Package',
-    description: 'Seeking capacitors, resistors, and circuit boards for manufacturing',
-    category: 'Electronics',
-    quantity: 100000,
-    quantityUnit: 'pieces',
-    budget: 500000,
-    currency: 'USD',
-    deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-    buyerCountry: 'Kuwait',
-    buyerName: 'Gulf Star Electronics',
-    status: 'Receiving Quotes',
-    quotationCount: 3,
-  },
-  {
-    id: 'req-003',
-    title: 'Solar Panels - 5MW Project',
-    description: 'Need 12,500 units of 400W solar panels for renewable energy project',
-    category: 'Solar & Renewable',
-    quantity: 12500,
-    quantityUnit: 'units',
-    budget: 2500000,
-    currency: 'USD',
-    deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-    buyerCountry: 'UAE',
-    buyerName: 'Emirates Steel Traders',
-    status: 'Open',
-    quotationCount: 2,
-  },
-  {
-    id: 'req-004',
-    title: 'Copper Wire - High Volume',
-    description: 'Bulk order of copper wire for electrical installations',
-    category: 'Raw Materials',
-    quantity: 5000,
-    quantityUnit: 'tons',
-    budget: 450000,
-    currency: 'USD',
-    deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
-    buyerCountry: 'Saudi Arabia',
-    buyerName: 'Riyada Electronics Manufacturing',
-    status: 'Awarded',
-    quotationCount: 8,
-  },
-];
-
-const categories = ['All', 'Steel & Metals', 'Electronics', 'Solar & Renewable', 'Raw Materials'];
-const countries = ['All', 'Saudi Arabia', 'UAE', 'Kuwait', 'Qatar'];
-const statuses = ['All', 'Open', 'Receiving Quotes', 'Closed', 'Awarded'];
 
 type SortOption = 'newest' | 'deadline' | 'budget' | 'quotes';
 
 export default function PurchaseRequestsPage() {
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedCountry, setSelectedCountry] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
-  const [budgetRange, setBudgetRange] = useState({ min: 0, max: 100000000 });
+  const [rfqs, setRfqs] = useState<RFQ[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRfqs, setTotalRfqs] = useState(0);
 
-  const itemsPerPage = 6;
+  const itemsPerPage = 10;
 
-  const filtered = useMemo(() => {
-    let result = demoPurchaseRequests.filter(req => {
-      const matchesCategory = selectedCategory === 'All' || req.category === selectedCategory;
-      const matchesCountry = selectedCountry === 'All' || req.buyerCountry === selectedCountry;
-      const matchesStatus = selectedStatus === 'All' || req.status === selectedStatus;
-      const matchesBudget = req.budget >= budgetRange.min && req.budget <= budgetRange.max;
-      const matchesSearch =
-        req.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.buyerName.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch categories
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories) setCategories(data.categories);
+      })
+      .catch(err => console.error('Failed to load categories:', err));
+  }, []);
 
-      return matchesCategory && matchesCountry && matchesStatus && matchesBudget && matchesSearch;
-    });
+  // Fetch RFQs
+  const fetchRfqs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
 
-    // Sort
-    result.sort((a, b) => {
+      if (selectedCategory) params.set('category_id', selectedCategory);
+      if (selectedStatus) params.set('status', selectedStatus);
+
+      const res = await fetch(`/api/rfq?${params}`);
+      const data = await res.json();
+
+      if (data.rfqs) {
+        setRfqs(data.rfqs);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalRfqs(data.pagination?.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to load RFQs:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, selectedCategory, selectedStatus]);
+
+  useEffect(() => {
+    fetchRfqs();
+  }, [fetchRfqs]);
+
+  // Debounced search reset
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Client-side filtering for search and sorting (API already handles category/status)
+  const filtered = rfqs
+    .filter(rfq => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        rfq.title?.toLowerCase().includes(term) ||
+        rfq.product_name?.toLowerCase().includes(term) ||
+        rfq.description?.toLowerCase().includes(term) ||
+        rfq.profiles?.company_name?.toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => {
       switch (sortBy) {
         case 'deadline':
-          return a.deadline.getTime() - b.deadline.getTime();
+          return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime();
         case 'budget':
-          return b.budget - a.budget;
+          return (b.max_budget || 0) - (a.max_budget || 0);
         case 'quotes':
-          return b.quotationCount - a.quotationCount;
-        case 'newest':
+          return (b.quotation_count || 0) - (a.quotation_count || 0);
         default:
-          return 0;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
 
-    return result;
-  }, [selectedCategory, selectedCountry, selectedStatus, budgetRange, sortBy, searchTerm]);
-
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedRequests = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const daysUntilDeadline = (deadline: Date) => {
-    const days = Math.ceil((deadline.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+  const daysUntilDeadline = (expiresAt: string) => {
+    const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
     return days > 0 ? days : 0;
+  };
+
+  const formatBudget = (budget: number | null, currency: string) => {
+    if (!budget) return 'Open Budget';
+    if (budget >= 1000000) return `$${(budget / 1000000).toFixed(1)}M ${currency}`;
+    if (budget >= 1000) return `$${(budget / 1000).toFixed(0)}K ${currency}`;
+    return `$${budget.toLocaleString()} ${currency}`;
+  };
+
+  const mapStatus = (status: string): 'Open' | 'Receiving Quotes' | 'Closed' | 'Awarded' => {
+    switch (status) {
+      case 'open': return 'Open';
+      case 'receiving_quotes': return 'Receiving Quotes';
+      case 'evaluating': return 'Receiving Quotes';
+      case 'awarded': return 'Awarded';
+      case 'closed': return 'Closed';
+      case 'cancelled': return 'Closed';
+      case 'expired': return 'Closed';
+      default: return 'Open';
+    }
   };
 
   return (
@@ -153,11 +155,18 @@ export default function PurchaseRequestsPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Purchase Requests</h1>
-            <p className="text-gray-400">Discover buying opportunities from Gulf buyers</p>
+            <p className="text-gray-400">
+              {totalRfqs > 0
+                ? `Discover ${totalRfqs} buying opportunities from Gulf buyers`
+                : 'Discover buying opportunities from Gulf buyers'}
+            </p>
           </div>
-          <button className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold hidden sm:block">
+          <Link
+            href="/marketplace/requests/new"
+            className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold hidden sm:block"
+          >
             + Post New Request
-          </button>
+          </Link>
         </div>
 
         {/* Search Bar */}
@@ -178,37 +187,30 @@ export default function PurchaseRequestsPage() {
             {/* Category Filter */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
               <h3 className="font-semibold text-white">Category</h3>
+              <label className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
+                <input
+                  type="radio"
+                  checked={selectedCategory === ''}
+                  onChange={() => {
+                    setSelectedCategory('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-4 h-4 accent-[#c41e3a]"
+                />
+                <span className="text-gray-300">All Categories</span>
+              </label>
               {categories.map(cat => (
-                <label key={cat} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
+                <label key={cat.id} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
                   <input
                     type="radio"
-                    checked={selectedCategory === cat}
+                    checked={selectedCategory === cat.id}
                     onChange={() => {
-                      setSelectedCategory(cat);
+                      setSelectedCategory(cat.id);
                       setCurrentPage(1);
                     }}
                     className="w-4 h-4 accent-[#c41e3a]"
                   />
-                  <span className="text-gray-300">{cat}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Country Filter */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">Buyer Country</h3>
-              {countries.map(country => (
-                <label key={country} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
-                  <input
-                    type="radio"
-                    checked={selectedCountry === country}
-                    onChange={() => {
-                      setSelectedCountry(country);
-                      setCurrentPage(1);
-                    }}
-                    className="w-4 h-4 accent-[#c41e3a]"
-                  />
-                  <span className="text-gray-300">{country}</span>
+                  <span className="text-gray-300">{cat.name_en}</span>
                 </label>
               ))}
             </div>
@@ -216,45 +218,27 @@ export default function PurchaseRequestsPage() {
             {/* Status Filter */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
               <h3 className="font-semibold text-white">Status</h3>
-              {statuses.map(status => (
-                <label key={status} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
+              {[
+                { value: '', label: 'All Status' },
+                { value: 'open', label: 'Open' },
+                { value: 'receiving_quotes', label: 'Receiving Quotes' },
+                { value: 'evaluating', label: 'Evaluating' },
+                { value: 'awarded', label: 'Awarded' },
+                { value: 'closed', label: 'Closed' },
+              ].map(opt => (
+                <label key={opt.value} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
                   <input
                     type="radio"
-                    checked={selectedStatus === status}
+                    checked={selectedStatus === opt.value}
                     onChange={() => {
-                      setSelectedStatus(status);
+                      setSelectedStatus(opt.value);
                       setCurrentPage(1);
                     }}
                     className="w-4 h-4 accent-[#c41e3a]"
                   />
-                  <span className="text-gray-300">{status}</span>
+                  <span className="text-gray-300">{opt.label}</span>
                 </label>
               ))}
-            </div>
-
-            {/* Budget Range */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">Budget Range (USD)</h3>
-              <input
-                type="number"
-                placeholder="Min"
-                value={budgetRange.min}
-                onChange={(e) => {
-                  setBudgetRange({ ...budgetRange, min: parseInt(e.target.value) || 0 });
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                value={budgetRange.max}
-                onChange={(e) => {
-                  setBudgetRange({ ...budgetRange, max: parseInt(e.target.value) || 100000000 });
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
             </div>
           </div>
 
@@ -263,8 +247,7 @@ export default function PurchaseRequestsPage() {
             {/* Toolbar */}
             <div className="flex items-center justify-between gap-4">
               <p className="text-gray-400">
-                Showing {filtered.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} requests
+                {loading ? 'Loading...' : `Showing ${filtered.length} requests`}
               </p>
               <select
                 value={sortBy}
@@ -281,31 +264,47 @@ export default function PurchaseRequestsPage() {
               </select>
             </div>
 
-            {/* Requests Grid */}
-            {paginatedRequests.length > 0 ? (
+            {/* Loading State */}
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 animate-pulse">
+                    <div className="h-6 bg-[#242830] rounded w-3/4 mb-3" />
+                    <div className="h-4 bg-[#242830] rounded w-1/2 mb-4" />
+                    <div className="grid grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map(j => (
+                        <div key={j} className="h-10 bg-[#242830] rounded" />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
-                {paginatedRequests.map(request => (
-                  <RequestCard
-                    key={request.id}
-                    request={{
-                      id: request.id,
-                      title: request.title,
-                      description: request.description,
-                      category: request.category,
-                      quantity: `${request.quantity.toLocaleString()} ${request.quantityUnit}`,
-                      budget: `$${(request.budget / 1000000).toFixed(1)}M`,
-                      deadline: daysUntilDeadline(request.deadline),
-                      buyerCountry: request.buyerCountry,
-                      buyerName: request.buyerName,
-                      status: request.status,
-                      quotationCount: request.quotationCount,
-                    }}
-                  />
+                {filtered.map(rfq => (
+                  <Link key={rfq.id} href={`/marketplace/requests/${rfq.id}`}>
+                    <RequestCard
+                      request={{
+                        id: rfq.id,
+                        title: rfq.title,
+                        description: rfq.description || rfq.product_name,
+                        category: rfq.categories?.name_en || 'General',
+                        quantity: `${rfq.quantity?.toLocaleString()} ${rfq.unit_of_measure || 'units'}`,
+                        budget: formatBudget(rfq.max_budget, rfq.currency),
+                        deadline: daysUntilDeadline(rfq.expires_at),
+                        buyerCountry: rfq.profiles?.country || 'Unknown',
+                        buyerName: rfq.profiles?.company_name || rfq.profiles?.full_name_en || 'Anonymous',
+                        status: mapStatus(rfq.status),
+                        quotationCount: rfq.quotation_count || 0,
+                      }}
+                    />
+                  </Link>
                 ))}
               </div>
             ) : (
               <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-12 text-center">
-                <p className="text-gray-400">No requests found matching your filters.</p>
+                <p className="text-gray-400 text-lg mb-2">No requests found</p>
+                <p className="text-gray-500 text-sm">Try adjusting your filters</p>
               </div>
             )}
 
@@ -319,7 +318,7 @@ export default function PurchaseRequestsPage() {
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}

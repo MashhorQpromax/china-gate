@@ -1,195 +1,125 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductCard from '@/components/marketplace/ProductCard';
-import { Currency, Incoterm } from '@/types';
+import Link from 'next/link';
+
+interface Category {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  slug: string;
+  product_count: number;
+}
 
 interface Product {
   id: string;
-  nameEn: string;
-  nameAr: string;
-  priceMin: number;
-  priceMax: number;
-  currency: Currency;
+  name_en: string;
+  name_ar: string;
+  base_price: number;
+  currency: string;
   moq: number;
-  category: string;
-  supplier: {
-    id: string;
-    nameEn: string;
-    country: string;
-  };
-  rating: number;
+  moq_unit: string;
+  avg_rating: number;
+  review_count: number;
+  view_count: number;
+  order_count: number;
   certifications: string[];
-  availableForPartnership: boolean;
-  image?: string;
+  origin_country: string;
+  main_image_url: string;
+  status: string;
+  featured: boolean;
+  brand_name: string;
+  categories?: { name_en: string; name_ar: string; slug: string };
+  supplier_id: string;
 }
 
-const demoProducts: Product[] = [
-  {
-    id: 'prod-001',
-    nameEn: 'Carbon Steel Flat Sheets',
-    nameAr: 'ألواح الفولاذ الكربوني المسطحة',
-    priceMin: 450,
-    priceMax: 650,
-    currency: 'USD',
-    moq: 5000,
-    category: 'Steel & Metals',
-    supplier: {
-      id: 'company-003',
-      nameEn: 'Zhejiang Steel Manufacturing',
-      country: 'China',
-    },
-    rating: 4.8,
-    certifications: ['ISO9001', 'ISO14001'],
-    availableForPartnership: true,
-  },
-  {
-    id: 'prod-002',
-    nameEn: 'Stainless Steel Coils',
-    nameAr: 'ملفات الفولاذ المقاوم للصدأ',
-    priceMin: 550,
-    priceMax: 750,
-    currency: 'USD',
-    moq: 3000,
-    category: 'Steel & Metals',
-    supplier: {
-      id: 'company-003',
-      nameEn: 'Zhejiang Steel Manufacturing',
-      country: 'China',
-    },
-    rating: 4.9,
-    certifications: ['ISO9001', 'ISO14001'],
-    availableForPartnership: false,
-  },
-  {
-    id: 'prod-003',
-    nameEn: 'Electronic Capacitors',
-    nameAr: 'المكثفات الإلكترونية',
-    priceMin: 0.5,
-    priceMax: 2.5,
-    currency: 'USD',
-    moq: 10000,
-    category: 'Electronics',
-    supplier: {
-      id: 'company-005',
-      nameEn: 'Shanghai Electronics Components',
-      country: 'China',
-    },
-    rating: 4.7,
-    certifications: ['ISO9001', 'CE', 'IATF'],
-    availableForPartnership: true,
-  },
-  {
-    id: 'prod-004',
-    nameEn: 'Solar Panels 400W',
-    nameAr: 'الألواح الشمسية 400 واط',
-    priceMin: 180,
-    priceMax: 220,
-    currency: 'USD',
-    moq: 200,
-    category: 'Solar & Renewable',
-    supplier: {
-      id: 'company-006',
-      nameEn: 'Jiangsu Solar Panel Manufacturing',
-      country: 'China',
-    },
-    rating: 4.6,
-    certifications: ['ISO9001', 'CE'],
-    availableForPartnership: true,
-  },
-  {
-    id: 'prod-005',
-    nameEn: 'Copper Wire (MM2)',
-    nameAr: 'سلك النحاس',
-    priceMin: 8,
-    priceMax: 12,
-    currency: 'USD',
-    moq: 1000,
-    category: 'Raw Materials',
-    supplier: {
-      id: 'company-003',
-      nameEn: 'Zhejiang Steel Manufacturing',
-      country: 'China',
-    },
-    rating: 4.8,
-    certifications: ['ISO9001'],
-    availableForPartnership: false,
-  },
-];
-
-const categories = ['All', 'Steel & Metals', 'Electronics', 'Solar & Renewable', 'Raw Materials'];
-const incoterms = ['FOB', 'CIF', 'EXW', 'DDP'];
-
-type SortOption = 'price_low' | 'price_high' | 'newest' | 'rating' | 'moq';
+type SortOption = 'newest' | 'price_low' | 'price_high' | 'rating' | 'popular';
 
 export default function ProductsMarketplacePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
-  const [moqRange, setMoqRange] = useState({ min: 0, max: 50000 });
-  const [selectedCertifications, setSelectedCertifications] = useState<string[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
 
-  const filtered = useMemo(() => {
-    let result = demoProducts.filter(product => {
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      const matchesPrice =
-        product.priceMin >= priceRange.min && product.priceMax <= priceRange.max;
-      const matchesMOQ = product.moq >= moqRange.min && product.moq <= moqRange.max;
-      const matchesCountry =
-        selectedCountry === 'All' || product.supplier.country === selectedCountry;
-      const matchesCertifications =
-        selectedCertifications.length === 0 ||
-        selectedCertifications.every(cert => product.certifications.includes(cert));
-      const matchesSearch =
-        product.nameEn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.nameAr.includes(searchTerm) ||
-        product.supplier.nameEn.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch categories
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories) setCategories(data.categories);
+      })
+      .catch(err => console.error('Failed to load categories:', err));
+  }, []);
 
-      return (
-        matchesCategory &&
-        matchesPrice &&
-        matchesMOQ &&
-        matchesCountry &&
-        matchesCertifications &&
-        matchesSearch
-      );
-    });
+  // Fetch products
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        status: 'active',
+      });
 
-    // Sort
-    result.sort((a, b) => {
+      if (selectedCategory) params.set('category_id', selectedCategory);
+      if (searchTerm) params.set('search', searchTerm);
+
+      // Map sort options to API params
       switch (sortBy) {
         case 'price_low':
-          return a.priceMin - b.priceMin;
+          params.set('sort_by', 'price');
+          params.set('sort_order', 'asc');
+          break;
         case 'price_high':
-          return b.priceMax - a.priceMax;
+          params.set('sort_by', 'price');
+          params.set('sort_order', 'desc');
+          break;
         case 'rating':
-          return b.rating - a.rating;
-        case 'moq':
-          return a.moq - b.moq;
-        case 'newest':
+          params.set('sort_by', 'rating');
+          break;
+        case 'popular':
+          params.set('sort_by', 'popular');
+          break;
         default:
-          return 0;
+          params.set('sort_by', 'created_at');
       }
-    });
 
-    return result;
-  }, [selectedCategory, priceRange, moqRange, selectedCertifications, selectedCountry, sortBy, searchTerm]);
+      const res = await fetch(`/api/products?${params}`);
+      const data = await res.json();
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedProducts = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+      if (data.products) {
+        setProducts(data.products);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalProducts(data.pagination?.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to load products:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy]);
 
-  const countries = ['All', ...new Set(demoProducts.map(p => p.supplier.country))];
-  const allCertifications = Array.from(new Set(demoProducts.flatMap(p => p.certifications)));
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   return (
     <DashboardLayout
@@ -201,22 +131,26 @@ export default function ProductsMarketplacePage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Product Marketplace</h1>
-            <p className="text-gray-400">Browse verified suppliers and products</p>
+            <p className="text-gray-400">
+              {totalProducts > 0
+                ? `Browse ${totalProducts} verified products from trusted suppliers`
+                : 'Browse verified suppliers and products'}
+            </p>
           </div>
-          <button className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold">
-            + Add Product
-          </button>
+          <Link
+            href="/marketplace/requests"
+            className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+          >
+            + Submit RFQ
+          </Link>
         </div>
 
         {/* Search Bar */}
         <input
           type="text"
-          placeholder="Search products, suppliers..."
+          placeholder="Search products, suppliers, brands..."
           value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#c41e3a] outline-none transition-colors"
         />
 
@@ -250,112 +184,51 @@ export default function ProductsMarketplacePage() {
             {/* Category Filter */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
               <h3 className="font-semibold text-white">Category</h3>
+              <label className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
+                <input
+                  type="radio"
+                  checked={selectedCategory === ''}
+                  onChange={() => {
+                    setSelectedCategory('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-4 h-4 accent-[#c41e3a]"
+                />
+                <span className="text-gray-300">All Categories</span>
+              </label>
               {categories.map(cat => (
-                <label key={cat} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
+                <label key={cat.id} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
                   <input
                     type="radio"
-                    checked={selectedCategory === cat}
+                    checked={selectedCategory === cat.id}
                     onChange={() => {
-                      setSelectedCategory(cat);
+                      setSelectedCategory(cat.id);
                       setCurrentPage(1);
                     }}
                     className="w-4 h-4 accent-[#c41e3a]"
                   />
-                  <span className="text-gray-300">{cat}</span>
+                  <span className="text-gray-300">{cat.name_en}</span>
                 </label>
               ))}
             </div>
 
-            {/* Price Range */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">Price Range (USD)</h3>
-              <input
-                type="number"
-                placeholder="Min"
-                value={priceRange.min}
+            {/* Sort (mobile-friendly duplicate) */}
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3 lg:hidden">
+              <h3 className="font-semibold text-white">Sort By</h3>
+              <select
+                value={sortBy}
                 onChange={(e) => {
-                  setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 });
+                  setSortBy(e.target.value as SortOption);
                   setCurrentPage(1);
                 }}
                 className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                value={priceRange.max}
-                onChange={(e) => {
-                  setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 1000 });
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
-            </div>
-
-            {/* MOQ Range */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">MOQ Range</h3>
-              <input
-                type="number"
-                placeholder="Min"
-                value={moqRange.min}
-                onChange={(e) => {
-                  setMoqRange({ ...moqRange, min: parseInt(e.target.value) || 0 });
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                value={moqRange.max}
-                onChange={(e) => {
-                  setMoqRange({ ...moqRange, max: parseInt(e.target.value) || 50000 });
-                  setCurrentPage(1);
-                }}
-                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm"
-              />
-            </div>
-
-            {/* Country Filter */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">Country</h3>
-              {countries.map(country => (
-                <label key={country} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
-                  <input
-                    type="radio"
-                    checked={selectedCountry === country}
-                    onChange={() => {
-                      setSelectedCountry(country);
-                      setCurrentPage(1);
-                    }}
-                    className="w-4 h-4 accent-[#c41e3a]"
-                  />
-                  <span className="text-gray-300">{country}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Certifications */}
-            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-white">Certifications</h3>
-              {allCertifications.map(cert => (
-                <label key={cert} className="flex items-center gap-2 cursor-pointer hover:text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={selectedCertifications.includes(cert)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedCertifications([...selectedCertifications, cert]);
-                      } else {
-                        setSelectedCertifications(selectedCertifications.filter(c => c !== cert));
-                      }
-                      setCurrentPage(1);
-                    }}
-                    className="w-4 h-4 accent-[#c41e3a]"
-                  />
-                  <span className="text-gray-300">{cert}</span>
-                </label>
-              ))}
+              >
+                <option value="newest">Newest</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+                <option value="rating">Highest Rating</option>
+                <option value="popular">Most Popular</option>
+              </select>
             </div>
           </div>
 
@@ -364,8 +237,7 @@ export default function ProductsMarketplacePage() {
             {/* Toolbar */}
             <div className="flex items-center justify-between">
               <p className="text-gray-400">
-                Showing {filtered.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} products
+                {loading ? 'Loading...' : `Showing ${totalProducts} products`}
               </p>
               <select
                 value={sortBy}
@@ -373,18 +245,29 @@ export default function ProductsMarketplacePage() {
                   setSortBy(e.target.value as SortOption);
                   setCurrentPage(1);
                 }}
-                className="bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-2 text-white focus:border-[#c41e3a] outline-none"
+                className="hidden lg:block bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-2 text-white focus:border-[#c41e3a] outline-none"
               >
                 <option value="newest">Newest</option>
                 <option value="price_low">Price: Low to High</option>
                 <option value="price_high">Price: High to Low</option>
                 <option value="rating">Highest Rating</option>
-                <option value="moq">Lowest MOQ</option>
+                <option value="popular">Most Popular</option>
               </select>
             </div>
 
-            {/* Products Grid/List */}
-            {paginatedProducts.length > 0 ? (
+            {/* Loading State */}
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 animate-pulse">
+                    <div className="bg-[#242830] h-48 rounded-lg mb-4" />
+                    <div className="bg-[#242830] h-4 rounded w-3/4 mb-2" />
+                    <div className="bg-[#242830] h-4 rounded w-1/2 mb-4" />
+                    <div className="bg-[#242830] h-8 rounded w-1/3" />
+                  </div>
+                ))}
+              </div>
+            ) : products.length > 0 ? (
               <div
                 className={
                   viewMode === 'grid'
@@ -392,20 +275,23 @@ export default function ProductsMarketplacePage() {
                     : 'space-y-4'
                 }
               >
-                {paginatedProducts.map(product => (
+                {products.map(product => (
                   <ProductCard
                     key={product.id}
                     product={{
                       id: product.id,
-                      nameEn: product.nameEn,
-                      nameAr: product.nameAr,
-                      priceRange: `$${product.priceMin}-$${product.priceMax}`,
+                      nameEn: product.name_en,
+                      nameAr: product.name_ar || '',
+                      priceRange: product.base_price
+                        ? `$${product.base_price.toLocaleString()}`
+                        : 'Contact for price',
                       moq: product.moq,
-                      supplier: product.supplier.nameEn,
-                      country: product.supplier.country,
-                      rating: product.rating,
-                      certifications: product.certifications,
-                      availableForPartnership: product.availableForPartnership,
+                      supplier: product.brand_name || 'Verified Supplier',
+                      country: product.origin_country || 'China',
+                      rating: product.avg_rating || 0,
+                      certifications: product.certifications || [],
+                      availableForPartnership: product.featured || false,
+                      image: product.main_image_url,
                     }}
                     isListView={viewMode === 'list'}
                   />
@@ -413,7 +299,8 @@ export default function ProductsMarketplacePage() {
               </div>
             ) : (
               <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-12 text-center">
-                <p className="text-gray-400">No products found matching your filters.</p>
+                <p className="text-gray-400 text-lg mb-2">No products found</p>
+                <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
               </div>
             )}
 
@@ -427,7 +314,7 @@ export default function ProductsMarketplacePage() {
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}

@@ -1,146 +1,101 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface Quotation {
   id: string;
-  referenceNumber: string;
-  requestTitle: string;
-  buyerOrSupplierName: string;
-  price: number;
+  reference_number: string;
+  unit_price: number;
   quantity: number;
+  total_price: number;
   currency: string;
-  status: 'Pending' | 'Accepted' | 'Negotiating' | 'Rejected';
-  dateSubmitted: Date;
-  validity: Date;
-  leadTime: number;
+  status: string;
+  lead_time: number;
+  lead_time_unit: string;
+  valid_until: string;
+  created_at: string;
+  purchase_requests: { title: string; product_name: string } | null;
+  // supplier profile
+  profiles: { full_name_en: string; company_name: string } | null;
 }
 
-const demoQuotations: Quotation[] = [
-  {
-    id: 'quote-001',
-    referenceNumber: 'QT-2024-001',
-    requestTitle: 'Carbon Steel Sheets - Large Volume',
-    buyerOrSupplierName: 'Al-Rajhi Trading Company',
-    price: 25750000,
-    quantity: 50000,
-    currency: 'USD',
-    status: 'Pending',
-    dateSubmitted: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    validity: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-    leadTime: 35,
-  },
-  {
-    id: 'quote-002',
-    referenceNumber: 'QT-2024-002',
-    requestTitle: 'Electronic Components Package',
-    buyerOrSupplierName: 'Gulf Star Electronics',
-    price: 450000,
-    quantity: 100000,
-    currency: 'USD',
-    status: 'Accepted',
-    dateSubmitted: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    validity: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    leadTime: 28,
-  },
-  {
-    id: 'quote-003',
-    referenceNumber: 'QT-2024-003',
-    requestTitle: 'Solar Panels - 5MW Project',
-    buyerOrSupplierName: 'Emirates Steel Traders',
-    price: 2500000,
-    quantity: 12500,
-    currency: 'USD',
-    status: 'Negotiating',
-    dateSubmitted: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    validity: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
-    leadTime: 60,
-  },
-  {
-    id: 'quote-004',
-    referenceNumber: 'QT-2024-004',
-    requestTitle: 'Copper Wire - High Volume',
-    buyerOrSupplierName: 'Riyada Electronics Manufacturing',
-    price: 400000,
-    quantity: 5000,
-    currency: 'USD',
-    status: 'Rejected',
-    dateSubmitted: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    validity: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
-    leadTime: 45,
-  },
-  {
-    id: 'quote-005',
-    referenceNumber: 'QT-2024-005',
-    requestTitle: 'Carbon Steel Sheets - Large Volume',
-    buyerOrSupplierName: 'Al-Rajhi Trading Company',
-    price: 25400000,
-    quantity: 50000,
-    currency: 'USD',
-    status: 'Pending',
-    dateSubmitted: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    validity: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-    leadTime: 40,
-  },
-];
-
 type SortOption = 'date' | 'price' | 'status';
-type StatusFilter = 'All' | 'Pending' | 'Accepted' | 'Negotiating' | 'Rejected';
+type StatusFilter = '' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired' | 'negotiating';
 
-const statusColors = {
-  'Pending': { bg: 'bg-gray-600 bg-opacity-20', text: 'text-gray-400' },
-  'Accepted': { bg: 'bg-green-600 bg-opacity-20', text: 'text-green-400' },
-  'Negotiating': { bg: 'bg-blue-600 bg-opacity-20', text: 'text-blue-400' },
-  'Rejected': { bg: 'bg-red-600 bg-opacity-20', text: 'text-red-400' },
+const statusColors: Record<string, { bg: string; text: string }> = {
+  sent: { bg: 'bg-gray-600 bg-opacity-20', text: 'text-gray-400' },
+  viewed: { bg: 'bg-blue-600 bg-opacity-20', text: 'text-blue-400' },
+  accepted: { bg: 'bg-green-600 bg-opacity-20', text: 'text-green-400' },
+  negotiating: { bg: 'bg-yellow-600 bg-opacity-20', text: 'text-yellow-400' },
+  rejected: { bg: 'bg-red-600 bg-opacity-20', text: 'text-red-400' },
+  expired: { bg: 'bg-gray-600 bg-opacity-20', text: 'text-gray-500' },
+  withdrawn: { bg: 'bg-gray-600 bg-opacity-20', text: 'text-gray-500' },
 };
 
 export default function QuotationsPage() {
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('All');
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalQuotations, setTotalQuotations] = useState(0);
 
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
-  const filtered = useMemo(() => {
-    let result = demoQuotations.filter(quote => {
-      const matchesStatus = selectedStatus === 'All' || quote.status === selectedStatus;
-      const matchesSearch =
-        quote.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.requestTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.buyerOrSupplierName.toLowerCase().includes(searchTerm.toLowerCase());
+  const fetchQuotations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
 
-      return matchesStatus && matchesSearch;
-    });
+      if (selectedStatus) params.set('status', selectedStatus);
+      if (searchTerm) params.set('search', searchTerm);
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'price':
-          return b.price - a.price;
-        case 'status':
-          return a.status.localeCompare(b.status);
-        case 'date':
-        default:
-          return b.dateSubmitted.getTime() - a.dateSubmitted.getTime();
+      const res = await fetch(`/api/quotations?${params}`);
+      const data = await res.json();
+
+      if (data.quotations) {
+        setQuotations(data.quotations);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalQuotations(data.pagination?.total || 0);
       }
-    });
+    } catch (err) {
+      console.error('Failed to load quotations:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, selectedStatus, searchTerm]);
 
-    return result;
-  }, [selectedStatus, sortBy, searchTerm]);
+  useEffect(() => {
+    fetchQuotations();
+  }, [fetchQuotations]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedQuotations = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Client-side sorting
+  const sorted = [...quotations].sort((a, b) => {
+    switch (sortBy) {
+      case 'price':
+        return (b.total_price || 0) - (a.total_price || 0);
+      case 'status':
+        return (a.status || '').localeCompare(b.status || '');
+      case 'date':
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
 
-  const statusCounts = {
-    Pending: demoQuotations.filter(q => q.status === 'Pending').length,
-    Accepted: demoQuotations.filter(q => q.status === 'Accepted').length,
-    Negotiating: demoQuotations.filter(q => q.status === 'Negotiating').length,
-    Rejected: demoQuotations.filter(q => q.status === 'Rejected').length,
+  // Count by status
+  const statusCounts: Record<string, number> = {};
+  quotations.forEach(q => {
+    statusCounts[q.status] = (statusCounts[q.status] || 0) + 1;
+  });
+
+  const getStatusStyle = (status: string) => {
+    return statusColors[status] || statusColors.sent;
   };
 
   return (
@@ -152,12 +107,16 @@ export default function QuotationsPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Quotations</h1>
-          <p className="text-gray-400">Track and manage your submitted and received quotations</p>
+          <p className="text-gray-400">
+            {totalQuotations > 0
+              ? `Track and manage ${totalQuotations} quotations`
+              : 'Track and manage your submitted and received quotations'}
+          </p>
         </div>
 
         {/* Status Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {(Object.entries(statusCounts) as [StatusFilter, number][]).map(([status, count]) => (
+          {['sent', 'accepted', 'negotiating', 'rejected'].map(status => (
             <div
               key={status}
               className={`border rounded-lg p-4 cursor-pointer transition-all ${
@@ -166,15 +125,15 @@ export default function QuotationsPage() {
                   : 'bg-[#1a1d23] border-[#242830] hover:border-[#d4a843]'
               }`}
               onClick={() => {
-                setSelectedStatus(status);
+                setSelectedStatus(selectedStatus === status ? '' : status as StatusFilter);
                 setCurrentPage(1);
               }}
             >
-              <p className={`text-sm font-semibold ${selectedStatus === status ? 'text-white' : 'text-gray-400'}`}>
+              <p className={`text-sm font-semibold capitalize ${selectedStatus === status ? 'text-white' : 'text-gray-400'}`}>
                 {status}
               </p>
-              <p className={`text-2xl font-bold mt-1 ${selectedStatus === status ? 'text-white' : 'text-white'}`}>
-                {count}
+              <p className={`text-2xl font-bold mt-1 text-white`}>
+                {statusCounts[status] || 0}
               </p>
             </div>
           ))}
@@ -184,7 +143,7 @@ export default function QuotationsPage() {
         <div className="flex gap-4 flex-col sm:flex-row">
           <input
             type="text"
-            placeholder="Search by reference, title, or name..."
+            placeholder="Search by reference number..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -207,80 +166,95 @@ export default function QuotationsPage() {
         </div>
 
         {/* Quotations Table */}
-        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-[#0c0f14] border-b border-[#242830]">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Reference</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Request Title</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Party</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Price</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Date</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#242830]">
-                {paginatedQuotations.map((quote) => {
-                  const isExpired = quote.validity < new Date();
-                  return (
-                    <tr
-                      key={quote.id}
-                      className="hover:bg-[#242830] transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <span className="text-white font-semibold text-sm">{quote.referenceNumber}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-300 text-sm">{quote.requestTitle}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-400 text-sm">{quote.buyerOrSupplierName}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-white font-semibold text-sm">
-                          ${quote.price.toLocaleString()} {quote.currency}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-3 py-1 rounded text-xs font-semibold ${
-                              statusColors[quote.status as keyof typeof statusColors].bg
-                            } ${statusColors[quote.status as keyof typeof statusColors].text}`}
-                          >
-                            {quote.status}
-                          </span>
-                          {isExpired && (
-                            <span className="text-xs text-red-400">Expired</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-400 text-sm">
-                          {quote.dateSubmitted.toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button className="px-3 py-1 bg-[#c41e3a] bg-opacity-20 text-[#c41e3a] rounded text-xs hover:bg-opacity-30 transition-colors">
-                            View
-                          </button>
-                          {quote.status === 'Pending' && (
-                            <button className="px-3 py-1 bg-[#d4a843] bg-opacity-20 text-[#d4a843] rounded text-xs hover:bg-opacity-30 transition-colors">
-                              Edit
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {loading ? (
+          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-8">
+            <div className="space-y-4 animate-pulse">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-12 bg-[#242830] rounded" />
+              ))}
+            </div>
           </div>
-        </div>
+        ) : sorted.length > 0 ? (
+          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[#0c0f14] border-b border-[#242830]">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Reference</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Request</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Supplier</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Price</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#242830]">
+                  {sorted.map((quote) => {
+                    const isExpired = quote.valid_until && new Date(quote.valid_until) < new Date();
+                    const style = getStatusStyle(quote.status);
+                    return (
+                      <tr key={quote.id} className="hover:bg-[#242830] transition-colors">
+                        <td className="px-6 py-4">
+                          <span className="text-white font-semibold text-sm">
+                            {quote.reference_number || quote.id.slice(0, 8)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-gray-300 text-sm">
+                            {quote.purchase_requests?.title || quote.purchase_requests?.product_name || '-'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-gray-400 text-sm">
+                            {quote.profiles?.company_name || quote.profiles?.full_name_en || '-'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-white font-semibold text-sm">
+                            ${quote.total_price?.toLocaleString()} {quote.currency}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded text-xs font-semibold capitalize ${style.bg} ${style.text}`}>
+                              {quote.status}
+                            </span>
+                            {isExpired && quote.status !== 'expired' && (
+                              <span className="text-xs text-red-400">Expired</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-gray-400 text-sm">
+                            {new Date(quote.created_at).toLocaleDateString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            <button className="px-3 py-1 bg-[#c41e3a] bg-opacity-20 text-[#c41e3a] rounded text-xs hover:bg-opacity-30 transition-colors">
+                              View
+                            </button>
+                            {quote.status === 'sent' && (
+                              <button className="px-3 py-1 bg-[#d4a843] bg-opacity-20 text-[#d4a843] rounded text-xs hover:bg-opacity-30 transition-colors">
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-12 text-center">
+            <p className="text-gray-400 text-lg mb-2">No quotations found</p>
+            <p className="text-gray-500 text-sm">Quotations will appear here when suppliers respond to RFQs</p>
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -292,7 +266,7 @@ export default function QuotationsPage() {
             >
               Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
