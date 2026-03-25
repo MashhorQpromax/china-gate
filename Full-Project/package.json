@@ -38,10 +38,11 @@
     "lucide-react": "^0.294.0",
     "date-fns": "^2.30.0",
     "next-intl": "^3.11.0",
-    "@ducanh2912/next-pwa": "^10.1.6",
     "recharts": "^2.10.3",
     "uuid": "^9.0.1",
-    "@types/uuid": "^9.0.7"
+    "@types/uuid": "^9.0.7",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
     "eslint": "^8.56.0",

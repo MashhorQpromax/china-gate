@@ -322,21 +322,20 @@ export default function PartnershipRequestForm({
         </div>
 
         {/* Submit */}
-        <div className={cn('flex gap-3 col-span-full', isRTL && 'flex-row-reverse')}>
-          <button
-            type="submit"
-            className="flex-1 px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
-          >
-            {currentLanguage === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
-          </button>
-          <button
-            type="reset"
-            className="px-6 py-3 bg-[#0c0f14] border border-[#242830] text-gray-300 rounded-lg hover:border-gray-600 transition-colors font-semibold"
-          >
-            {currentLanguage === 'ar' ? 'إعادة تعيين' : 'Reset'}
-          </button>
-        </div>
-      </form>
+      <div className={cn('flex gap-3 col-span-full', isRTL && 'flex-row-reverse')}>
+        <button
+          type="submit"
+          className="flex-1 px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+        >
+          {currentLanguage === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
+        </button>
+        <button
+          type="reset"
+          className="px-6 py-3 bg-[#0c0f14] border border-[#242830] text-gray-300 rounded-lg hover:border-gray-600 transition-colors font-semibold"
+        >
+          {currentLanguage === 'ar' ? 'إعادة تعيين' : 'Reset'}
+        </button>
+      </div>
     </form>
   );
 }
