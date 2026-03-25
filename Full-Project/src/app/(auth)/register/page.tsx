@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Loader } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ACCOUNT_TYPES } from '@/constants/auth';
 import GulfBuyerForm from './forms/GulfBuyerForm';
