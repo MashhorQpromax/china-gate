@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# testing
+coverage/
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# env files - NEVER commit these
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+Full-Project/.env
+Full-Project/.env.local
+Full-Project/.env.development.local
+Full-Project/.env.test.local
+Full-Project/.env.production.local
+
+# debug
+npm-debug.log*
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# vercel
+.vercel
+
+# prisma
+prisma/*.db

@@ -46,12 +46,42 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('Login:', { emailOrPhone, password });
-      // Redirect or handle success
-    } catch (error) {
-      setGeneralError('فشل تسجيل الدخول. يرجى المحاولة مجدداً');
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailOrPhone,
+          password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Login failed');
+      }
+
+      // Store session token
+      if (result.session?.access_token) {
+        localStorage.setItem('access_token', result.session.access_token);
+        localStorage.setItem('user_profile', JSON.stringify(result.user.profile));
+      }
+
+      // Redirect based on account type
+      const accountType = result.user?.profile?.account_type;
+      if (accountType === 'gulf_buyer') {
+        window.location.href = '/dashboard/buyer';
+      } else if (accountType === 'chinese_supplier') {
+        window.location.href = '/dashboard/supplier';
+      } else if (accountType === 'gulf_manufacturer') {
+        window.location.href = '/dashboard/manufacturer';
+      } else if (accountType === 'admin') {
+        window.location.href = '/dashboard/admin';
+      } else {
+        window.location.href = '/dashboard/buyer';
+      }
+    } catch (error: any) {
+      setGeneralError(error.message || 'فشل تسجيل الدخول. يرجى المحاولة مجدداً');
     } finally {
       setIsLoading(false);
     }

@@ -33,15 +33,44 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSubmit = async (formData: unknown) => {
+  const handleSubmit = async (formData: any) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('Registration:', { accountType, formData });
-      // Redirect or handle success
-    } catch (error) {
+      // Map account type to database format
+      const typeMap: Record<string, string> = {
+        'gulf-buyer': 'gulf_buyer',
+        'chinese-supplier': 'chinese_supplier',
+        'gulf-manufacturer': 'gulf_manufacturer',
+      };
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          fullNameAr: formData.fullName_ar,
+          fullNameEn: formData.fullName_en,
+          companyName: formData.companyName,
+          accountType: typeMap[accountType || ''] || 'gulf_buyer',
+          country: formData.country,
+          city: formData.city,
+          phone: formData.phone,
+          commercialReg: formData.commercialRegistration,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed');
+      }
+
+      // Success - redirect to login
+      window.location.href = '/login?registered=true';
+    } catch (error: any) {
       console.error('Registration error:', error);
+      alert(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
