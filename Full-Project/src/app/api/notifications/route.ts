@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import {
   apiSuccess,
-  apiPaginated,
   apiServerError,
   getRequestUser,
   getPaginationParams,
@@ -56,16 +55,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return apiPaginated(
+    return apiSuccess(
       {
         notifications: notifications || [],
         unreadCount: unreadCount || 0,
       },
-      {
-        page,
-        limit,
-        total: count || 0,
-      }
+      undefined,
+      200
     );
   } catch (error) {
     return apiServerError(

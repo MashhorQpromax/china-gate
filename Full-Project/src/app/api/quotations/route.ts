@@ -13,8 +13,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
-    const userId = searchParams.get('user_id');
-    const role = searchParams.get('role') || 'any';
+
+    // Get userId from query param or x-user-id header
+    const userId = searchParams.get('user_id') || request.headers.get('x-user-id');
+
+    // Get role from query param or x-user-role header
+    const role = searchParams.get('role') || request.headers.get('x-user-role') || 'any';
+
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
@@ -25,10 +30,10 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (userId) {
-      if (role === 'supplier') {
-        query = query.eq('supplier_id', userId);
-      } else if (role === 'buyer') {
+      if (role === 'gulf_buyer') {
         query = query.eq('buyer_id', userId);
+      } else if (role === 'chinese_supplier') {
+        query = query.eq('supplier_id', userId);
       } else {
         query = query.or(`supplier_id.eq.${userId},buyer_id.eq.${userId}`);
       }
@@ -49,8 +54,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      quotations: data,
-      pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+      success: true,
+      data,
+      meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
     });
   } catch (error) {
     console.error('Quotations list error:', error);

@@ -23,20 +23,21 @@ interface AdminStats {
 
 interface RecentDeal {
   id: string;
-  reference: string;
-  product: string;
-  buyer: string;
-  supplier: string;
-  value: number;
+  title: string;
+  total_value: number;
   stage: string;
+  buyer_name: string;
+  supplier_name: string;
+  created_at: string;
 }
 
 interface RecentUser {
   id: string;
-  name: string;
+  full_name_en: string;
   email: string;
-  type: string;
-  joined: string;
+  company_name: string;
+  account_type: string;
+  created_at: string;
 }
 
 // Helper function to format currency values
@@ -330,18 +331,17 @@ export default function AdminDashboardPage() {
                     <div key={deal.id} className="p-3 bg-[#0c0f14] rounded border border-[#242830]">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1">
-                          <p className="text-white font-semibold text-sm">{deal.reference}</p>
-                          <p className="text-gray-400 text-xs">{deal.product}</p>
+                          <p className="text-white font-semibold text-sm">{deal.title}</p>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded text-white ${stageColors[deal.stage] || 'bg-gray-600'}`}>
                           {deal.stage}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-                        <p>Buyer: {deal.buyer}</p>
-                        <p>Supplier: {deal.supplier}</p>
+                        <p>Buyer: {deal.buyer_name}</p>
+                        <p>Supplier: {deal.supplier_name}</p>
                       </div>
-                      <p className="text-[#d4a843] font-semibold text-sm mt-2">{formatCurrency(deal.value)}</p>
+                      <p className="text-[#d4a843] font-semibold text-sm mt-2">{formatCurrency(deal.total_value)}</p>
                     </div>
                   ))
                 ) : (
@@ -391,14 +391,14 @@ export default function AdminDashboardPage() {
                   {stats?.recent_users && stats.recent_users.length > 0 ? (
                     stats.recent_users.map((user) => (
                       <tr key={user.id} className="border-b border-[#242830] hover:bg-[#242830]/50 transition-colors">
-                        <td className="text-white py-3 px-4">{user.name}</td>
+                        <td className="text-white py-3 px-4">{user.full_name_en || user.company_name || 'N/A'}</td>
                         <td className="text-gray-400 py-3 px-4">{user.email}</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-1 rounded text-xs font-semibold bg-[#c41e3a]/20 text-[#c41e3a]">
-                            {user.type}
+                            {user.account_type}
                           </span>
                         </td>
-                        <td className="text-gray-400 py-3 px-4">{user.joined}</td>
+                        <td className="text-gray-400 py-3 px-4">{new Date(user.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))
                   ) : (

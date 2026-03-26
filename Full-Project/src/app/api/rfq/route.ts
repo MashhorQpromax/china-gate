@@ -13,7 +13,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
-    const buyerId = searchParams.get('buyer_id');
+
+    // Get user info from headers
+    const userId = request.headers.get('x-user-id');
+    const userRole = request.headers.get('x-user-role');
+
+    // Override with query param if provided
+    const buyerId = searchParams.get('buyer_id') || userId;
     const status = searchParams.get('status');
     const categoryId = searchParams.get('category_id');
 
@@ -23,13 +29,20 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (buyerId) {
+    // Role-based filtering
+    if (userRole === 'gulf_buyer' && buyerId) {
       query = query.eq('buyer_id', buyerId);
+    } else if (userRole === 'chinese_supplier') {
+      // Suppliers see all open RFQs
+      query = query.in('status', ['open', 'receiving_quotes']);
+    } else if (userRole === 'admin') {
+      // Admins see all (no filter)
     }
 
     if (status) {
       query = query.eq('status', status);
-    } else {
+    } else if (userRole !== 'chinese_supplier') {
+      // Default status filter (except for suppliers who already have it)
       query = query.in('status', ['open', 'receiving_quotes', 'evaluating']);
     }
 
@@ -44,8 +57,14 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      rfqs: data,
-      pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+      success: true,
+      data: data || [],
+      meta: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      },
     });
   } catch (error) {
     console.error('RFQ list error:', error);

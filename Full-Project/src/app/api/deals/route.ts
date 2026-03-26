@@ -13,13 +13,12 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
-    const userId = searchParams.get('user_id');
-    const stage = searchParams.get('stage');
-    const role = searchParams.get('role') || 'any'; // buyer, supplier, any
 
-    if (!userId) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-    }
+    // Get userId from query param or header (header has priority from middleware)
+    const userId = searchParams.get('user_id') || request.headers.get('x-user-id');
+    // Get userRole from header
+    const userRole = request.headers.get('x-user-role') || 'any';
+    const stage = searchParams.get('stage');
 
     let query = supabase
       .from('deals')
@@ -27,13 +26,17 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (role === 'buyer') {
-      query = query.eq('buyer_id', userId);
-    } else if (role === 'supplier') {
-      query = query.eq('supplier_id', userId);
-    } else {
-      query = query.or(`buyer_id.eq.${userId},supplier_id.eq.${userId}`);
+    // If userId is available, filter by role
+    if (userId) {
+      if (userRole === 'buyer') {
+        query = query.eq('buyer_id', userId);
+      } else if (userRole === 'supplier') {
+        query = query.eq('supplier_id', userId);
+      } else {
+        query = query.or(`buyer_id.eq.${userId},supplier_id.eq.${userId}`);
+      }
     }
+    // If no userId, return all deals (admin view)
 
     if (stage) {
       query = query.eq('stage', stage);
@@ -42,16 +45,17 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
-      deals: data,
-      pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+      success: true,
+      data: data,
+      meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
     });
   } catch (error) {
     console.error('Deals list error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
