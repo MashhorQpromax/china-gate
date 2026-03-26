@@ -327,7 +327,7 @@ export default function BuyerDashboardPage() {
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Recent Deals</h2>
-                <Link href="/dashboard/buyer/deals" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
+                <Link href="/deals" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
                   View All →
                 </Link>
               </div>
@@ -376,25 +376,25 @@ export default function BuyerDashboardPage() {
               <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
               <div className="space-y-3">
                 <Link
-                  href="/dashboard/buyer/rfq/new"
+                  href="/marketplace/requests/new"
                   className="block w-full px-4 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm text-center"
                 >
                   + Post Request
                 </Link>
                 <Link
-                  href="/products"
+                  href="/marketplace/products"
                   className="block w-full px-4 py-3 bg-[#d4a843] text-[#0c0f14] rounded-lg hover:bg-yellow-500 transition-colors font-semibold text-sm text-center"
                 >
                   Browse Products
                 </Link>
                 <Link
-                  href="/dashboard/buyer/deals"
+                  href="/deals"
                   className="block w-full px-4 py-3 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors font-semibold text-sm text-center"
                 >
                   View Deals
                 </Link>
                 <Link
-                  href="/dashboard/buyer/messages"
+                  href="/messages"
                   className="block w-full px-4 py-3 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors font-semibold text-sm text-center"
                 >
                   Messages
@@ -458,29 +458,30 @@ export default function BuyerDashboardPage() {
               <p className="text-gray-400 text-sm">No recent purchase requests</p>
             ) : (
               rfqs.map(rfq => (
-                <div
+                <Link
                   key={rfq.id}
-                  className="p-4 bg-[#0c0f14] rounded-lg border border-[#242830] hover:border-[#d4a843] transition-colors"
+                  href={`/marketplace/requests/${rfq.id}`}
+                  className="block p-4 bg-[#0c0f14] rounded-lg border border-[#242830] hover:border-[#d4a843] transition-colors"
                 >
-                  <p className="font-semibold text-white mb-2">{rfq.product_name}</p>
+                  <p className="font-semibold text-white mb-2">{rfq.product_name || rfq.title}</p>
                   <p className="text-gray-400 text-sm mb-3">
                     {rfq.quantity} {rfq.unit_of_measure}
                   </p>
                   <div className="flex items-center justify-between">
                     <span
                       className={`text-xs px-2 py-1 rounded ${
-                        rfq.status.toLowerCase() === 'active'
+                        ['open', 'active'].includes(rfq.status.toLowerCase())
                           ? 'bg-green-500/20 text-green-400'
-                          : ['quoting', 'pending'].includes(rfq.status.toLowerCase())
+                          : ['receiving_quotes', 'quoting', 'pending'].includes(rfq.status.toLowerCase())
                           ? 'bg-blue-500/20 text-blue-400'
                           : 'bg-gray-500/20 text-gray-400'
                       }`}
                     >
-                      {rfq.status}
+                      {rfq.status.replace(/_/g, ' ')}
                     </span>
                     <p className="text-gray-600 text-xs">{formatRelativeDate(rfq.created_at)}</p>
                   </div>
-                </div>
+                </Link>
               ))
             )}
           </div>

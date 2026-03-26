@@ -147,6 +147,16 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       },
     ];
 
+    // Buyer-specific items
+    const buyerItems: SidebarItem[] = [
+      {
+        id: 'my-requests',
+        label: 'My Requests',
+        href: '/marketplace/requests',
+        icon: '📝',
+      },
+    ];
+
     // Role-based items
     const roleItems =
       userRole === 'admin'
@@ -158,7 +168,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
           }]
         : userRole === 'seller'
           ? [...baseItems.slice(0, 2), ...sellerItems, ...baseItems.slice(2)]
-          : baseItems;
+          : [...baseItems.slice(0, 2), ...buyerItems, ...baseItems.slice(2)];
 
     const menuItems = !isAuthenticated
       ? guestItems
