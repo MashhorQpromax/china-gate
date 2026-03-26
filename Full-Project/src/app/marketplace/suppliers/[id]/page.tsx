@@ -35,7 +35,7 @@ interface Product {
   name_en: string;
   name_ar: string;
   slug: string;
-  price: number;
+  base_price: number;
   currency: string;
   moq: number;
   unit: string;
@@ -436,7 +436,7 @@ export default function SupplierProfilePage() {
                           {product.name_en}
                         </h3>
                         <div className="text-[#d4a843] font-bold text-sm">
-                          {formatPrice(product.price, product.currency)}
+                          {formatPrice(product.base_price, product.currency)}
                         </div>
                         <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                           <span>MOQ: {product.moq} {product.unit || 'pcs'}</span>

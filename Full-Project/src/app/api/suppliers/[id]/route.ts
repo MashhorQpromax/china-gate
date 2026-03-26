@@ -43,7 +43,7 @@ export async function GET(
     // Fetch supplier products with count
     let productsQuery = supabase
       .from('products')
-      .select('id, name_en, name_ar, slug, price, currency, moq, unit, lead_time_days, origin_country, sample_available, main_image_url, rating_avg, rating_count, view_count, order_count, status, created_at, category_id', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('supplier_id', supplierId)
       .eq('status', 'active');
 
@@ -56,9 +56,9 @@ export async function GET(
 
     // Sort
     if (sortBy === 'price_asc') {
-      productsQuery = productsQuery.order('price', { ascending: true });
+      productsQuery = productsQuery.order('base_price', { ascending: true });
     } else if (sortBy === 'price_desc') {
-      productsQuery = productsQuery.order('price', { ascending: false });
+      productsQuery = productsQuery.order('base_price', { ascending: false });
     } else if (sortBy === 'rating') {
       productsQuery = productsQuery.order('rating_avg', { ascending: false });
     } else if (sortBy === 'popular') {
