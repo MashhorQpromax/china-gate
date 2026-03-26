@@ -1,125 +1,102 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { cn } from '@/lib/utils';
 
-interface TrainingProgram {
+interface Partnership {
   id: string;
-  type: 'china-to-saudi' | 'saudi-to-china';
+  reference_number: string;
+  initiator_id: string;
+  partner_id: string;
+  initiator_name: string;
+  partner_name: string;
+  partnership_type: string;
   title: string;
-  titleAr: string;
-  factory: string;
-  field: string;
-  fieldAr: string;
-  duration: string;
-  trainees: number;
-  language: string;
-  cost: number;
-  certification: string;
-  status: 'draft' | 'requested' | 'approved' | 'active' | 'completed';
-  startDate?: string;
-  endDate?: string;
+  description: string;
+  terms: string;
+  agreement_document_url: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
-
-const demoPrograms: TrainingProgram[] = [
-  {
-    id: 'tp-001',
-    type: 'china-to-saudi',
-    title: 'Electronics Manufacturing Excellence',
-    titleAr: 'تميز التصنيع الإلكتروني',
-    factory: 'Shanghai Electronics Co. → Saudi Manufacturing Co.',
-    field: 'Electronics Assembly',
-    fieldAr: 'تجميع إلكترونيات',
-    duration: '3 months',
-    trainees: 12,
-    language: 'Chinese + Arabic',
-    cost: 25000,
-    certification: 'ISO 9001 Advanced',
-    status: 'active',
-    startDate: '2024-02-15',
-    endDate: '2024-05-15',
-  },
-  {
-    id: 'tp-002',
-    type: 'saudi-to-china',
-    title: 'Quality Inspection & Testing',
-    titleAr: 'فحص الجودة والاختبار',
-    factory: 'Saudi Quality Bureau → Guangzhou Plastics',
-    field: 'Quality Control',
-    fieldAr: 'مراقبة الجودة',
-    duration: '2 months',
-    trainees: 8,
-    language: 'English + Chinese',
-    cost: 18000,
-    certification: 'AQL Certification',
-    status: 'approved',
-    startDate: '2024-04-01',
-    endDate: '2024-05-30',
-  },
-  {
-    id: 'tp-003',
-    type: 'china-to-saudi',
-    title: 'Advanced Injection Molding',
-    titleAr: 'حقن المعادن المتقدم',
-    factory: 'Tianjin Industrial → Gulf Manufacturing',
-    field: 'Plastic Injection',
-    fieldAr: 'حقن البلاستيك',
-    duration: '4 weeks',
-    trainees: 6,
-    language: 'Mandarin + Arabic',
-    cost: 15000,
-    certification: 'Injection Molding Specialist',
-    status: 'requested',
-  },
-  {
-    id: 'tp-004',
-    type: 'saudi-to-china',
-    title: 'Supply Chain Management',
-    titleAr: 'إدارة سلسلة التوريد',
-    factory: 'Saudi Logistics → Shanghai Hub',
-    field: 'Logistics',
-    fieldAr: 'اللوجستيات',
-    duration: '3 weeks',
-    trainees: 10,
-    language: 'English + Chinese',
-    cost: 12000,
-    certification: 'SCM Professional',
-    status: 'completed',
-    startDate: '2024-01-10',
-    endDate: '2024-02-01',
-  },
-];
 
 export default function TrainingPartnershipsPage() {
   const [isRTL, setIsRTL] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'ar' | 'zh'>('en');
-  const [filterType, setFilterType] = useState<'all' | 'china-to-saudi' | 'saudi-to-china'>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [partnerships, setPartnerships] = useState<Partnership[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLanguageChange = (lang: 'en' | 'ar' | 'zh') => {
     setCurrentLanguage(lang);
     setIsRTL(lang === 'ar');
   };
 
-  const filteredPrograms = demoPrograms.filter(prog => {
-    if (filterType !== 'all' && prog.type !== filterType) return false;
-    if (filterStatus !== 'all' && prog.status !== filterStatus) return false;
+  useEffect(() => {
+    fetchPartnerships();
+  }, []);
+
+  const fetchPartnerships = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('access_token');
+
+      const response = await fetch('/api/partnerships?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch partnerships');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        const allPartnerships = result.data || [];
+        const trainingPartnerships = allPartnerships.filter(
+          (p: Partnership) => p.partnership_type !== 'manufacturing' && p.partnership_type !== 'labor_lending'
+        );
+        setPartnerships(trainingPartnerships);
+      } else {
+        setError(result.error?.message || 'Failed to fetch partnerships');
+      }
+    } catch (err) {
+      console.error('Error fetching partnerships:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredPartnerships = partnerships.filter(p => {
+    if (filterType !== 'all' && p.partnership_type !== filterType) return false;
+    if (filterStatus !== 'all' && p.status !== filterStatus) return false;
     return true;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'bg-gray-900/30 text-gray-400 border-gray-700';
-      case 'requested':
+      case 'inquiry':
         return 'bg-blue-900/30 text-blue-400 border-blue-700';
-      case 'approved':
+      case 'under_discussion':
+        return 'bg-yellow-900/30 text-yellow-400 border-yellow-700';
+      case 'agreement_sent':
+        return 'bg-purple-900/30 text-purple-400 border-purple-700';
+      case 'agreement_signed':
         return 'bg-green-900/30 text-green-400 border-green-700';
       case 'active':
         return 'bg-purple-900/30 text-purple-400 border-purple-700';
-      case 'completed':
+      case 'suspended':
+        return 'bg-orange-900/30 text-orange-400 border-orange-700';
+      case 'terminated':
         return 'bg-[#d4a843]/20 text-[#d4a843] border-[#d4a843]/50';
       default:
         return 'bg-gray-900/30 text-gray-400 border-gray-700';
@@ -127,27 +104,50 @@ export default function TrainingPartnershipsPage() {
   };
 
   const getStatusLabel = (status: string) => {
-    const labels = {
-      draft: { en: 'Draft', ar: 'مسودة' },
-      requested: { en: 'Requested', ar: 'مطلوب' },
-      approved: { en: 'Approved', ar: 'موافق عليه' },
+    const labels: Record<string, { en: string; ar: string }> = {
+      inquiry: { en: 'Inquiry', ar: 'استفسار' },
+      under_discussion: { en: 'Under Discussion', ar: 'تحت النقاش' },
+      agreement_sent: { en: 'Agreement Sent', ar: 'تم إرسال الاتفاق' },
+      agreement_signed: { en: 'Agreement Signed', ar: 'تم توقيع الاتفاق' },
       active: { en: 'Active', ar: 'جاري' },
-      completed: { en: 'Completed', ar: 'مكتمل' },
+      suspended: { en: 'Suspended', ar: 'معلق' },
+      terminated: { en: 'Completed', ar: 'مكتمل' },
     };
-    return labels[status as keyof typeof labels] || { en: status, ar: status };
+    return labels[status] || { en: status, ar: status };
   };
 
   const getTypeLabel = (type: string) => {
-    const labels = {
-      'china-to-saudi': { en: '🇨🇳 → 🇸🇦 Training in China', ar: '🇨🇳 → 🇸🇦 تدريب في الصين' },
-      'saudi-to-china': { en: '🇸🇦 → 🇨🇳 Experts to Saudi', ar: '🇸🇦 → 🇨🇳 خبراء للسعودية' },
+    const labels: Record<string, { en: string; ar: string }> = {
+      distribution: { en: 'Distribution', ar: 'التوزيع' },
+      joint_venture: { en: 'Joint Venture', ar: 'مشروع مشترك' },
+      oem: { en: 'OEM', ar: 'تصنيع حسب الطلب' },
+      odm: { en: 'ODM', ar: 'التصميم والتصنيع' },
     };
-    return labels[type as keyof typeof labels] || { en: type, ar: type };
+    return labels[type] || { en: type, ar: type };
   };
 
-  const activeCount = demoPrograms.filter(p => p.status === 'active').length;
-  const completedCount = demoPrograms.filter(p => p.status === 'completed').length;
-  const totalTrainees = demoPrograms.reduce((sum, p) => sum + p.trainees, 0);
+  const activeCount = partnerships.filter(p => p.status === 'active').length;
+  const completedCount = partnerships.filter(p => p.status === 'terminated').length;
+  const totalPartnerships = partnerships.length;
+
+  if (loading) {
+    return (
+      <DashboardLayout
+        isRTL={isRTL}
+        currentLanguage={currentLanguage}
+        onLanguageChange={handleLanguageChange}
+      >
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#c41e3a]"></div>
+            <p className="text-gray-400 mt-4">
+              {currentLanguage === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -156,26 +156,24 @@ export default function TrainingPartnershipsPage() {
       onLanguageChange={handleLanguageChange}
     >
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className={cn('text-4xl font-bold mb-2', isRTL && 'text-right')}>
-            {currentLanguage === 'ar' ? 'برامج التدريب المتقاطع' : 'Cross-Training Programs'}
+            {currentLanguage === 'ar' ? 'برامج التدريب والتطوير' : 'Training & Development Programs'}
           </h1>
           <p className={cn('text-gray-400', isRTL && 'text-right')}>
             {currentLanguage === 'ar'
-              ? 'تبادل الخبرات والمعرفة بين المصانع الصينية والسعودية'
-              : 'Exchange expertise and knowledge between Chinese and Saudi factories'}
+              ? 'شراكات التدريب والتطوير المتقاطعة بين الصين والسعودية'
+              : 'Cross-border training and development partnerships between China and Saudi Arabia'}
           </p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
             <p className={cn('text-sm text-gray-400 mb-2', isRTL && 'text-right')}>
               {currentLanguage === 'ar' ? 'إجمالي البرامج' : 'Total Programs'}
             </p>
             <p className={cn('text-3xl font-bold', isRTL && 'text-right')}>
-              {demoPrograms.length}
+              {totalPartnerships}
             </p>
           </div>
 
@@ -190,24 +188,23 @@ export default function TrainingPartnershipsPage() {
 
           <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
             <p className={cn('text-sm text-gray-400 mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'المتدربون' : 'Total Trainees'}
-            </p>
-            <p className={cn('text-3xl font-bold text-blue-400', isRTL && 'text-right')}>
-              {totalTrainees}
-            </p>
-          </div>
-
-          <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
-            <p className={cn('text-sm text-gray-400 mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'مكتملة' : 'Completed'}
+              {currentLanguage === 'ar' ? 'المكتملة' : 'Completed'}
             </p>
             <p className={cn('text-3xl font-bold text-[#d4a843]', isRTL && 'text-right')}>
               {completedCount}
             </p>
           </div>
+
+          <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
+            <p className={cn('text-sm text-gray-400 mb-2', isRTL && 'text-right')}>
+              {currentLanguage === 'ar' ? 'متوسط التقييم' : 'Avg Rating'}
+            </p>
+            <p className={cn('text-3xl font-bold text-blue-400', isRTL && 'text-right')}>
+              4.7★
+            </p>
+          </div>
         </div>
 
-        {/* Request Training Button */}
         <div className="flex gap-4">
           <button
             onClick={() => setShowRequestForm(!showRequestForm)}
@@ -217,43 +214,37 @@ export default function TrainingPartnershipsPage() {
           </button>
         </div>
 
-        {/* Request Form */}
         {showRequestForm && (
           <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
             <h2 className={cn('text-2xl font-bold mb-6', isRTL && 'text-right')}>
               {currentLanguage === 'ar' ? 'طلب برنامج تدريب جديد' : 'Request New Training Program'}
             </h2>
             <form className="space-y-6">
-              {/* Training Type */}
-              <div>
-                <label className={cn('block font-semibold mb-3', isRTL && 'text-right')}>
-                  {currentLanguage === 'ar' ? 'نوع التدريب' : 'Training Type'}
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label className={cn('flex items-center gap-3 p-4 bg-[#0c0f14] border border-[#242830] rounded-lg cursor-pointer hover:border-[#c41e3a]', isRTL && 'flex-row-reverse')}>
-                    <input type="radio" name="type" value="china-to-saudi" className="w-5 h-5 accent-[#c41e3a]" />
-                    <span>{currentLanguage === 'ar' ? '🇨🇳 تدريب في الصين' : '🇨🇳 Training in China'}</span>
-                  </label>
-                  <label className={cn('flex items-center gap-3 p-4 bg-[#0c0f14] border border-[#242830] rounded-lg cursor-pointer hover:border-[#c41e3a]', isRTL && 'flex-row-reverse')}>
-                    <input type="radio" name="type" value="saudi-to-china" className="w-5 h-5 accent-[#c41e3a]" />
-                    <span>{currentLanguage === 'ar' ? '🇸🇦 خبراء للسعودية' : '🇸🇦 Experts to Saudi'}</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Field */}
               <div>
                 <label className={cn('block font-semibold mb-2', isRTL && 'text-right')}>
-                  {currentLanguage === 'ar' ? 'مجال التدريب' : 'Training Field'}
+                  {currentLanguage === 'ar' ? 'نوع الشراكة' : 'Partnership Type'}
+                </label>
+                <select
+                  className={cn('w-full px-4 py-2 bg-[#0c0f14] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none', isRTL && 'text-right')}
+                >
+                  <option value="distribution">{currentLanguage === 'ar' ? 'التوزيع' : 'Distribution'}</option>
+                  <option value="joint_venture">{currentLanguage === 'ar' ? 'مشروع مشترك' : 'Joint Venture'}</option>
+                  <option value="oem">{currentLanguage === 'ar' ? 'تصنيع حسب الطلب' : 'OEM'}</option>
+                  <option value="odm">{currentLanguage === 'ar' ? 'التصميم والتصنيع' : 'ODM'}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={cn('block font-semibold mb-2', isRTL && 'text-right')}>
+                  {currentLanguage === 'ar' ? 'عنوان البرنامج' : 'Program Title'}
                 </label>
                 <input
                   type="text"
-                  placeholder={currentLanguage === 'ar' ? 'مثال: إدارة الجودة' : 'e.g., Quality Management'}
+                  placeholder={currentLanguage === 'ar' ? 'مثال: برنامج التدريب المتقدم' : 'e.g., Advanced Training Program'}
                   className={cn('w-full px-4 py-2 bg-[#0c0f14] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none', isRTL && 'text-right')}
                 />
               </div>
 
-              {/* Duration */}
               <div>
                 <label className={cn('block font-semibold mb-2', isRTL && 'text-right')}>
                   {currentLanguage === 'ar' ? 'المدة' : 'Duration'}
@@ -265,7 +256,6 @@ export default function TrainingPartnershipsPage() {
                 />
               </div>
 
-              {/* Submit */}
               <div className={cn('flex gap-3', isRTL && 'flex-row-reverse')}>
                 <button type="submit" className="flex-1 px-6 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
                   {currentLanguage === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
@@ -282,20 +272,21 @@ export default function TrainingPartnershipsPage() {
           </div>
         )}
 
-        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={cn('block text-sm font-medium mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'نوع التدريب' : 'Training Type'}
+              {currentLanguage === 'ar' ? 'نوع الشراكة' : 'Partnership Type'}
             </label>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
+              onChange={(e) => setFilterType(e.target.value)}
               className="w-full px-4 py-2 bg-[#1a1d23] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none"
             >
               <option value="all">{currentLanguage === 'ar' ? 'الكل' : 'All'}</option>
-              <option value="china-to-saudi">{currentLanguage === 'ar' ? 'تدريب في الصين' : 'Training in China'}</option>
-              <option value="saudi-to-china">{currentLanguage === 'ar' ? 'خبراء للسعودية' : 'Experts to Saudi'}</option>
+              <option value="distribution">{currentLanguage === 'ar' ? 'التوزيع' : 'Distribution'}</option>
+              <option value="joint_venture">{currentLanguage === 'ar' ? 'مشروع مشترك' : 'Joint Venture'}</option>
+              <option value="oem">{currentLanguage === 'ar' ? 'تصنيع حسب الطلب' : 'OEM'}</option>
+              <option value="odm">{currentLanguage === 'ar' ? 'التصميم والتصنيع' : 'ODM'}</option>
             </select>
           </div>
 
@@ -309,107 +300,108 @@ export default function TrainingPartnershipsPage() {
               className="w-full px-4 py-2 bg-[#1a1d23] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none"
             >
               <option value="all">{currentLanguage === 'ar' ? 'الكل' : 'All'}</option>
-              <option value="draft">{currentLanguage === 'ar' ? 'مسودة' : 'Draft'}</option>
-              <option value="requested">{currentLanguage === 'ar' ? 'مطلوب' : 'Requested'}</option>
-              <option value="approved">{currentLanguage === 'ar' ? 'موافق عليه' : 'Approved'}</option>
+              <option value="inquiry">{currentLanguage === 'ar' ? 'استفسار' : 'Inquiry'}</option>
+              <option value="under_discussion">{currentLanguage === 'ar' ? 'تحت النقاش' : 'Under Discussion'}</option>
+              <option value="agreement_signed">{currentLanguage === 'ar' ? 'تم التوقيع' : 'Agreement Signed'}</option>
               <option value="active">{currentLanguage === 'ar' ? 'جاري' : 'Active'}</option>
-              <option value="completed">{currentLanguage === 'ar' ? 'مكتمل' : 'Completed'}</option>
+              <option value="terminated">{currentLanguage === 'ar' ? 'مكتمل' : 'Completed'}</option>
             </select>
           </div>
         </div>
 
-        {/* Programs List */}
-        <div className="space-y-4">
-          {filteredPrograms.map((program) => (
-            <div
-              key={program.id}
-              className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg hover:border-[#c41e3a] transition-all"
+        {error && (
+          <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg text-red-400 flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={fetchPartnerships}
+              className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-600 transition-colors text-sm font-medium"
             >
-              <div className={cn('flex items-start justify-between gap-4 mb-4', isRTL && 'flex-row-reverse')}>
-                <div className={cn('flex-1', isRTL && 'text-right')}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold">
-                      {currentLanguage === 'ar' ? program.titleAr : program.title}
-                    </h3>
-                  </div>
-                  <p className="text-gray-400 mb-2">{program.factory}</p>
-                  <div className={cn('text-sm text-[#d4a843] font-medium mb-3', isRTL && 'text-right')}>
-                    {getTypeLabel(program.type)[currentLanguage as 'en' | 'ar']}
-                  </div>
-                </div>
+              {currentLanguage === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+            </button>
+          </div>
+        )}
 
-                <span
-                  className={cn(
-                    'px-4 py-2 rounded-lg border font-semibold whitespace-nowrap',
-                    getStatusColor(program.status)
-                  )}
+        {!error && (
+          <div className="space-y-4">
+            {filteredPartnerships.length === 0 ? (
+              <div className="p-12 text-center bg-[#1a1d23] border border-[#242830] rounded-lg">
+                <p className="text-gray-400 mb-4">
+                  {currentLanguage === 'ar' ? 'لا توجد برامج تدريب' : 'No training programs found'}
+                </p>
+                <button
+                  onClick={() => setShowRequestForm(true)}
+                  className="px-6 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                 >
-                  {getStatusLabel(program.status)[currentLanguage as 'en' | 'ar']}
-                </span>
-              </div>
-
-              <div className={cn('grid grid-cols-2 md:grid-cols-4 gap-4 mb-4', isRTL && 'text-right')}>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">
-                    {currentLanguage === 'ar' ? 'المجال' : 'Field'}
-                  </p>
-                  <p className="font-medium">
-                    {currentLanguage === 'ar' ? program.fieldAr : program.field}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">
-                    {currentLanguage === 'ar' ? 'المدة' : 'Duration'}
-                  </p>
-                  <p className="font-medium">{program.duration}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">
-                    {currentLanguage === 'ar' ? 'المتدربون' : 'Trainees'}
-                  </p>
-                  <p className="font-medium">{program.trainees}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">
-                    {currentLanguage === 'ar' ? 'التكلفة' : 'Cost'}
-                  </p>
-                  <p className="font-medium text-[#d4a843]">${program.cost.toLocaleString()}</p>
-                </div>
-              </div>
-
-              <div className={cn('flex items-center gap-2 mb-4 pb-4 border-b border-[#242830]', isRTL && 'flex-row-reverse')}>
-                <span className="text-sm text-gray-400">
-                  {currentLanguage === 'ar' ? 'اللغات:' : 'Languages:'}
-                </span>
-                <span className="font-medium">{program.language}</span>
-              </div>
-
-              <div className={cn('flex items-center gap-2 mb-4', isRTL && 'flex-row-reverse')}>
-                <span className="text-sm text-gray-400">
-                  {currentLanguage === 'ar' ? 'الشهادة:' : 'Certification:'}
-                </span>
-                <span className="font-medium text-green-400">{program.certification}</span>
-              </div>
-
-              {program.startDate && (
-                <div className={cn('text-xs text-gray-500 mb-4', isRTL && 'text-right')}>
-                  {currentLanguage === 'ar' ? 'من' : 'From'} {program.startDate} {currentLanguage === 'ar' ? 'إلى' : 'to'} {program.endDate}
-                </div>
-              )}
-
-              <div className={cn('flex gap-3', isRTL && 'flex-row-reverse')}>
-                <button className="flex-1 px-4 py-2 bg-[#c41e3a]/20 border border-[#c41e3a] text-[#c41e3a] rounded hover:bg-[#c41e3a]/30 transition-colors text-sm font-medium">
-                  {currentLanguage === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+                  {currentLanguage === 'ar' ? '+ إنشاء الأول' : '+ Create One'}
                 </button>
-                {program.status === 'requested' && (
-                  <button className="flex-1 px-4 py-2 bg-green-600/20 border border-green-600 text-green-400 rounded hover:bg-green-600/30 transition-colors text-sm font-medium">
-                    {currentLanguage === 'ar' ? 'الموافقة' : 'Approve'}
-                  </button>
-                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ) : (
+              filteredPartnerships.map((program) => (
+                <div
+                  key={program.id}
+                  className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg hover:border-[#c41e3a] transition-all"
+                >
+                  <div className={cn('flex items-start justify-between gap-4 mb-4', isRTL && 'flex-row-reverse')}>
+                    <div className={cn('flex-1', isRTL && 'text-right')}>
+                      <h3 className="text-lg font-semibold mb-2">{program.title}</h3>
+                      <p className="text-gray-400 mb-2">{program.partner_name}</p>
+                      <div className={cn('text-sm text-[#d4a843] font-medium', isRTL && 'text-right')}>
+                        {getTypeLabel(program.partnership_type)[currentLanguage as 'en' | 'ar']}
+                      </div>
+                    </div>
+
+                    <span
+                      className={cn(
+                        'px-4 py-2 rounded-lg border font-semibold whitespace-nowrap',
+                        getStatusColor(program.status)
+                      )}
+                    >
+                      {getStatusLabel(program.status)[currentLanguage as 'en' | 'ar']}
+                    </span>
+                  </div>
+
+                  <div className={cn('grid grid-cols-2 md:grid-cols-3 gap-4 mb-4', isRTL && 'text-right')}>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {currentLanguage === 'ar' ? 'الرقم المرجعي' : 'Reference'}
+                      </p>
+                      <p className="font-medium text-sm">{program.reference_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {currentLanguage === 'ar' ? 'تاريخ البداية' : 'Start Date'}
+                      </p>
+                      <p className="font-medium text-sm">
+                        {program.start_date ? new Date(program.start_date).toLocaleDateString() : 'TBD'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {currentLanguage === 'ar' ? 'الوصف' : 'Description'}
+                      </p>
+                      <p className="font-medium text-sm line-clamp-1">{program.description || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className={cn('flex gap-3', isRTL && 'flex-row-reverse')}>
+                    <button className="flex-1 px-4 py-2 bg-[#c41e3a]/20 border border-[#c41e3a] text-[#c41e3a] rounded hover:bg-[#c41e3a]/30 transition-colors text-sm font-medium">
+                      {currentLanguage === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+                    </button>
+                    {program.status === 'inquiry' || program.status === 'under_discussion' ? (
+                      <button className="flex-1 px-4 py-2 bg-green-600/20 border border-green-600 text-green-400 rounded hover:bg-green-600/30 transition-colors text-sm font-medium">
+                        {currentLanguage === 'ar' ? 'الموافقة' : 'Approve'}
+                      </button>
+                    ) : (
+                      <button className="flex-1 px-4 py-2 bg-[#d4a843]/20 border border-[#d4a843] text-[#d4a843] rounded hover:bg-[#d4a843]/30 transition-colors text-sm font-medium">
+                        {currentLanguage === 'ar' ? 'تقييم' : 'Rate'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

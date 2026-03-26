@@ -1,356 +1,417 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import QualityStats from '@/components/quality/QualityStats';
-import { cn } from '@/lib/utils';
+import { ChevronDown, AlertCircle, RefreshCw } from 'lucide-react';
 
-interface QualityJourney {
+interface QualityInspection {
   id: string;
-  productName: string;
-  productNameAr: string;
-  currentStage: number;
-  status: 'completed' | 'active' | 'pending' | 'failed';
-  passRate: number;
-  lastUpdate: string;
-  supplier: string;
-  orderId: string;
+  deal_id: string;
+  inspector_id: string;
+  stage: string;
+  result: string;
+  defect_rate: number;
+  sample_size: number;
+  defective_count: number;
+  notes: string;
+  findings: string;
+  corrective_actions: string;
+  photos: string[];
+  report_url: string;
+  certificates: string[];
+  scheduled_date: string;
+  completed_at: string;
+  status: string;
+  created_at: string;
+  deal: {
+    id: string;
+    reference_number: string;
+    product_name: string;
+    buyer_name: string;
+    supplier_name: string;
+  } | null;
 }
 
-const demoQualityJourneys: QualityJourney[] = [
-  {
-    id: 'qj-001',
-    productName: 'Electronic Transformer',
-    productNameAr: 'محول كهربائي',
-    currentStage: 7,
-    status: 'active',
-    passRate: 96,
-    lastUpdate: '2024-03-24 14:30',
-    supplier: 'Shanghai Electronics Co.',
-    orderId: 'PO-2024-001',
-  },
-  {
-    id: 'qj-002',
-    productName: 'Industrial Valve',
-    productNameAr: 'صمام صناعي',
-    currentStage: 5,
-    status: 'active',
-    passRate: 98,
-    lastUpdate: '2024-03-24 10:15',
-    supplier: 'Tianjin Industrial Ltd.',
-    orderId: 'PO-2024-002',
-  },
-  {
-    id: 'qj-003',
-    productName: 'Plastic Components',
-    productNameAr: 'مكونات بلاستيكية',
-    currentStage: 10,
-    status: 'completed',
-    passRate: 97,
-    lastUpdate: '2024-03-23 16:45',
-    supplier: 'Guangzhou Plastics Corp.',
-    orderId: 'PO-2024-003',
-  },
-  {
-    id: 'qj-004',
-    productName: 'Steel Pipes',
-    productNameAr: 'أنابيب فولاذية',
-    currentStage: 3,
-    status: 'failed',
-    passRate: 78,
-    lastUpdate: '2024-03-22 09:20',
-    supplier: 'Wuhan Steel Mills',
-    orderId: 'PO-2024-004',
-  },
-  {
-    id: 'qj-005',
-    productName: 'Circuit Boards',
-    productNameAr: 'لوحات الدوائر',
-    currentStage: 4,
-    status: 'active',
-    passRate: 95,
-    lastUpdate: '2024-03-24 13:00',
-    supplier: 'Shenzhen Electronics',
-    orderId: 'PO-2024-005',
-  },
+interface ApiResponse {
+  data: QualityInspection[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+}
+
+const STAGES = [
+  'pre_production',
+  'material_check',
+  'first_article',
+  'production_process',
+  'in_process',
+  'final_inspection',
+  'packaging',
+  'load_check',
+  'transit_monitoring',
+  'post_delivery',
 ];
 
-const stageNames = [
-  { en: 'Specification Confirmed', ar: 'تأكيد المواصفات' },
-  { en: 'Sample', ar: 'العينة' },
-  { en: 'Production Started', ar: 'بدء الإنتاج' },
-  { en: 'DPI - In Production Inspection', ar: 'فحص أثناء الإنتاج' },
-  { en: 'PSI - Pre-Shipment Inspection', ar: 'فحص ما قبل الشحن' },
-  { en: 'Packing', ar: 'التغليف' },
-  { en: 'Shipped', ar: 'الشحن' },
-  { en: 'In Transit', ar: 'في الطريق' },
-  { en: 'Arrived & Customs', ar: 'الوصول والتخليص' },
-  { en: 'Final Acceptance', ar: 'الاستلام والتأكيد النهائي' },
-];
+const STAGE_LABELS: Record<string, string> = {
+  pre_production: 'Pre-Production',
+  material_check: 'Material Check',
+  first_article: 'First Article',
+  production_process: 'Production Process',
+  in_process: 'In-Process',
+  final_inspection: 'Final Inspection',
+  packaging: 'Packaging',
+  load_check: 'Load Check',
+  transit_monitoring: 'Transit Monitoring',
+  post_delivery: 'Post-Delivery',
+};
+
+const RESULT_LABELS: Record<string, string> = {
+  pass: 'Pass',
+  conditional_pass: 'Conditional Pass',
+  fail: 'Fail',
+  pending: 'Pending',
+};
+
+const getResultColor = (result: string) => {
+  switch (result) {
+    case 'pass':
+      return 'text-green-400';
+    case 'conditional_pass':
+      return 'text-yellow-400';
+    case 'fail':
+      return 'text-red-400';
+    case 'pending':
+      return 'text-gray-400';
+    default:
+      return 'text-gray-400';
+  }
+};
+
+const getResultBgColor = (result: string) => {
+  switch (result) {
+    case 'pass':
+      return 'bg-green-900/20 border-green-700/50';
+    case 'conditional_pass':
+      return 'bg-yellow-900/20 border-yellow-700/50';
+    case 'fail':
+      return 'bg-red-900/20 border-red-700/50';
+    case 'pending':
+      return 'bg-gray-900/20 border-gray-700/50';
+    default:
+      return 'bg-gray-900/20 border-gray-700/50';
+  }
+};
+
+const getStageIndex = (stage: string) => {
+  return STAGES.indexOf(stage);
+};
 
 export default function QualityPage() {
-  const [isRTL, setIsRTL] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'ar' | 'zh'>('en');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterProduct, setFilterProduct] = useState<string>('all');
-  const [filterSupplier, setFilterSupplier] = useState<string>('all');
+  const [inspections, setInspections] = useState<QualityInspection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [resultFilter, setResultFilter] = useState('all');
+  const [stageFilter, setStageFilter] = useState('all');
 
-  const handleLanguageChange = (lang: 'en' | 'ar' | 'zh') => {
-    setCurrentLanguage(lang);
-    setIsRTL(lang === 'ar');
-  };
+  const fetchInspections = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-  const filteredJourneys = demoQualityJourneys.filter(journey => {
-    if (filterStatus !== 'all' && journey.status !== filterStatus) return false;
-    if (filterProduct !== 'all' && journey.productName !== filterProduct) return false;
-    if (filterSupplier !== 'all' && journey.supplier !== filterSupplier) return false;
-    return true;
-  });
+    try {
+      const accessToken = localStorage.getItem('access_token');
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-900/30 text-green-400 border-green-700';
-      case 'active':
-        return 'bg-blue-900/30 text-blue-400 border-blue-700';
-      case 'pending':
-        return 'bg-yellow-900/30 text-yellow-400 border-yellow-700';
-      case 'failed':
-        return 'bg-red-900/30 text-red-400 border-red-700';
-      default:
-        return 'bg-gray-900/30 text-gray-400 border-gray-700';
+      if (!accessToken) {
+        setError('No access token found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (resultFilter !== 'all') {
+        params.append('result', resultFilter);
+      }
+      if (stageFilter !== 'all') {
+        params.append('stage', stageFilter);
+      }
+
+      const response = await fetch(`/api/quality?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch inspections: ${response.statusText}`);
+      }
+
+      const result: ApiResponse = await response.json();
+      setInspections(result.data);
+      setTotal(result.pagination.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
     }
+  }, [page, limit, resultFilter, stageFilter]);
+
+  useEffect(() => {
+    fetchInspections();
+  }, [fetchInspections]);
+
+  const handleRetry = () => {
+    fetchInspections();
   };
 
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      completed: { en: 'Completed', ar: 'مكتمل' },
-      active: { en: 'Active', ar: 'نشط' },
-      pending: { en: 'Pending', ar: 'قيد الانتظار' },
-      failed: { en: 'Failed', ar: 'فشل' },
-    };
-    return labels[status as keyof typeof labels] || { en: 'Unknown', ar: 'غير معروف' };
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
   };
 
-  const uniqueProducts = Array.from(new Set(demoQualityJourneys.map(j => j.productName)));
-  const uniqueSuppliers = Array.from(new Set(demoQualityJourneys.map(j => j.supplier)));
+  const totalPages = Math.ceil(total / limit);
 
   return (
-    <DashboardLayout
-      isRTL={isRTL}
-      currentLanguage={currentLanguage}
-      onLanguageChange={handleLanguageChange}
-    >
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className={cn('text-4xl font-bold mb-2', isRTL && 'text-right')}>
-            {currentLanguage === 'ar' ? 'ضمان الجودة' : 'Quality Assurance'}
-          </h1>
-          <p className={cn('text-gray-400', isRTL && 'text-right')}>
-            {currentLanguage === 'ar'
-              ? 'تتبع رحلة المنتج الكاملة من المواصفات إلى الاستقبال النهائي'
-              : 'Track your complete product journey from specifications to final acceptance'}
-          </p>
-        </div>
-
-        {/* Statistics Cards */}
-        <QualityStats isRTL={isRTL} currentLanguage={currentLanguage} />
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className={cn('block text-sm font-medium mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'حالة' : 'Status'}
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2 bg-[#1a1d23] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none"
-            >
-              <option value="all">{currentLanguage === 'ar' ? 'الكل' : 'All'}</option>
-              <option value="completed">{currentLanguage === 'ar' ? 'مكتمل' : 'Completed'}</option>
-              <option value="active">{currentLanguage === 'ar' ? 'نشط' : 'Active'}</option>
-              <option value="pending">{currentLanguage === 'ar' ? 'قيد الانتظار' : 'Pending'}</option>
-              <option value="failed">{currentLanguage === 'ar' ? 'فشل' : 'Failed'}</option>
-            </select>
+    <DashboardLayout>
+      <div className="min-h-screen bg-[#1a1f2b]">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">Quality Inspections</h1>
+            <p className="text-gray-400">Track and manage quality inspections across all stages</p>
           </div>
 
-          <div>
-            <label className={cn('block text-sm font-medium mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'المنتج' : 'Product'}
-            </label>
-            <select
-              value={filterProduct}
-              onChange={(e) => setFilterProduct(e.target.value)}
-              className="w-full px-4 py-2 bg-[#1a1d23] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none"
-            >
-              <option value="all">{currentLanguage === 'ar' ? 'الكل' : 'All'}</option>
-              {uniqueProducts.map((product) => (
-                <option key={product} value={product}>
-                  {product}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Filter by Result
+              </label>
+              <div className="relative">
+                <select
+                  value={resultFilter}
+                  onChange={(e) => {
+                    setResultFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#d4a843] appearance-none"
+                >
+                  <option value="all">All Results</option>
+                  <option value="pass">Pass</option>
+                  <option value="conditional_pass">Conditional Pass</option>
+                  <option value="fail">Fail</option>
+                  <option value="pending">Pending</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Filter by Stage
+              </label>
+              <div className="relative">
+                <select
+                  value={stageFilter}
+                  onChange={(e) => {
+                    setStageFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#d4a843] appearance-none"
+                >
+                  <option value="all">All Stages</option>
+                  {STAGES.map((stage) => (
+                    <option key={stage} value={stage}>
+                      {STAGE_LABELS[stage]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className={cn('block text-sm font-medium mb-2', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'المورد' : 'Supplier'}
-            </label>
-            <select
-              value={filterSupplier}
-              onChange={(e) => setFilterSupplier(e.target.value)}
-              className="w-full px-4 py-2 bg-[#1a1d23] border border-[#242830] rounded-lg text-white focus:border-[#c41e3a] focus:outline-none"
-            >
-              <option value="all">{currentLanguage === 'ar' ? 'الكل' : 'All'}</option>
-              {uniqueSuppliers.map((supplier) => (
-                <option key={supplier} value={supplier}>
-                  {supplier}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button className="w-full px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
-              {currentLanguage === 'ar' ? 'بحث' : 'Search'}
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Quality Journeys */}
-        <div>
-          <h2 className={cn('text-2xl font-bold mb-4', isRTL && 'text-right')}>
-            {currentLanguage === 'ar' ? 'رحلات الجودة الأخيرة' : 'Recent Quality Journeys'}
-          </h2>
-
-          <div className="space-y-4">
-            {filteredJourneys.map((journey) => (
-              <a
-                key={journey.id}
-                href={`/quality/${journey.id}`}
-                className="block p-6 bg-[#1a1d23] border border-[#242830] rounded-lg hover:border-[#c41e3a] transition-all hover:shadow-lg hover:shadow-red-900/20 cursor-pointer"
-              >
-                <div className={cn('flex items-start justify-between gap-4', isRTL && 'flex-row-reverse')}>
-                  <div className={cn('flex-1', isRTL && 'text-right')}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold">
-                        {journey.productName}
-                      </h3>
-                      <span className="text-sm text-gray-400">
-                        ({journey.productNameAr})
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-400 mb-3">
-                      {currentLanguage === 'ar' ? 'المورد:' : 'Supplier:'} {journey.supplier}
-                    </p>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="text-sm text-gray-400">
-                        {currentLanguage === 'ar' ? 'PO:' : 'Order:'} {journey.orderId}
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        {currentLanguage === 'ar' ? 'المرحلة:' : 'Stage:'} {journey.currentStage}/10
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        {currentLanguage === 'ar' ? 'معدل النجاح:' : 'Pass Rate:'} {journey.passRate}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className={cn('flex flex-col items-end gap-3', isRTL && 'items-start')}>
-                    <span
-                      className={cn(
-                        'px-3 py-1 rounded-full text-sm font-medium border',
-                        getStatusBadgeColor(journey.status)
-                      )}
-                    >
-                      {getStatusLabel(journey.status)[currentLanguage as 'en' | 'ar']}
-                    </span>
-                    <div className="w-32 bg-[#0c0f14] rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-[#c41e3a] to-[#d4a843] h-2 rounded-full"
-                        style={{ width: `${(journey.currentStage / 10) * 100}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {currentLanguage === 'ar' ? 'التحديث:' : 'Updated:'} {journey.lastUpdate}
-                    </span>
-                  </div>
-                </div>
-              </a>
-            ))}
-          </div>
-
-          {filteredJourneys.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-400 text-lg">
-                {currentLanguage === 'ar' ? 'لا توجد رحلات جودة مطابقة' : 'No matching quality journeys found'}
-              </p>
+          {loading && (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#d4a843] mx-auto mb-4"></div>
+                <p className="text-gray-400">Loading inspections...</p>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Common Issues Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
-            <h3 className={cn('text-xl font-bold mb-4', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'أكثر المشاكل شيوعاً' : 'Most Common Issues'}
-            </h3>
-            <div className="space-y-3">
-              {[
-                { en: 'Dimensional Tolerance', ar: 'تحمل الأبعاد', count: 12 },
-                { en: 'Surface Defects', ar: 'عيوب السطح', count: 8 },
-                { en: 'Assembly Quality', ar: 'جودة التجميع', count: 6 },
-                { en: 'Color Variation', ar: 'اختلاف اللون', count: 4 },
-                { en: 'Packaging Damage', ar: 'تلف التغليف', count: 3 },
-              ].map((issue, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <span className="text-gray-300">{issue[currentLanguage as 'en' | 'ar']}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-[#0c0f14] rounded-full h-2">
-                      <div
-                        className="bg-red-600 h-2 rounded-full"
-                        style={{ width: `${(issue.count / 15) * 100}%` }}
-                      ></div>
+          {error && (
+            <div className="mb-8 p-4 bg-red-900/20 border border-red-700/50 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-red-400 font-semibold mb-1">Error</h3>
+                <p className="text-red-300 text-sm mb-3">{error}</p>
+                <button
+                  onClick={handleRetry}
+                  className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && inspections.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="text-gray-400 text-lg">No quality inspections found</p>
+              <p className="text-gray-500 text-sm mt-2">Try adjusting your filters</p>
+            </div>
+          )}
+
+          {!loading && !error && inspections.length > 0 && (
+            <>
+              <div className="space-y-4">
+                {inspections.map((inspection) => {
+                  const stageIndex = getStageIndex(inspection.stage);
+                  const stageProgress = ((stageIndex + 1) / STAGES.length) * 100;
+
+                  return (
+                    <div
+                      key={inspection.id}
+                      className={`p-6 rounded-lg border transition-all ${getResultBgColor(inspection.result)} hover:border-gray-500/50`}
+                    >
+                      <div className="mb-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            {inspection.deal && (
+                              <>
+                                <h3 className="text-lg font-semibold text-white">
+                                  {inspection.deal.reference_number}
+                                </h3>
+                                <p className="text-sm text-gray-400">
+                                  {inspection.deal.product_name}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Buyer: {inspection.deal.buyer_name} | Supplier: {inspection.deal.supplier_name}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getResultColor(inspection.result)}`}>
+                              {RESULT_LABELS[inspection.result] || inspection.result}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-[#d4a843]">
+                            {STAGE_LABELS[inspection.stage] || inspection.stage}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({stageIndex + 1} of {STAGES.length})
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          {STAGES.map((_, idx) => (
+                            <div
+                              key={idx}
+                              className={`h-2 flex-1 rounded-sm ${
+                                idx <= stageIndex
+                                  ? 'bg-[#d4a843]'
+                                  : 'bg-gray-700'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 text-xs">Sample Size</p>
+                          <p className="text-white font-semibold">{inspection.sample_size}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Defective Count</p>
+                          <p className="text-white font-semibold">{inspection.defective_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Defect Rate</p>
+                          <p className="text-white font-semibold">
+                            {(inspection.defect_rate * 100).toFixed(2)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Completed</p>
+                          <p className="text-white font-semibold">
+                            {inspection.completed_at
+                              ? new Date(inspection.completed_at).toLocaleDateString()
+                              : 'Pending'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {inspection.findings && (
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 mb-1">Findings</p>
+                          <p className="text-sm text-gray-300">{inspection.findings}</p>
+                        </div>
+                      )}
+
+                      {inspection.corrective_actions && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Corrective Actions</p>
+                          <p className="text-sm text-gray-300">{inspection.corrective_actions}</p>
+                        </div>
+                      )}
                     </div>
-                    <span className="text-sm text-gray-400 w-8">{issue.count}</span>
+                  );
+                })}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="mt-8 flex items-center justify-between">
+                  <div className="text-sm text-gray-400">
+                    Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} inspections
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page === 1}
+                      className="px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-500 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-4 py-2 rounded-lg border transition-colors ${
+                            page === pageNum
+                              ? 'bg-[#d4a843] border-[#d4a843] text-black font-semibold'
+                              : 'bg-[#0f1419] border-gray-700 text-white hover:border-gray-500'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page === totalPages}
+                      className="px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-500 transition-colors"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-6 bg-[#1a1d23] border border-[#242830] rounded-lg">
-            <h3 className={cn('text-xl font-bold mb-4', isRTL && 'text-right')}>
-              {currentLanguage === 'ar' ? 'أفضل المورددين من حيث الجودة' : 'Best Suppliers by Quality'}
-            </h3>
-            <div className="space-y-4">
-              {[
-                { name: 'Shanghai Electronics Co.', rating: 9.8 },
-                { name: 'Guangzhou Plastics Corp.', rating: 9.5 },
-                { name: 'Tianjin Industrial Ltd.', rating: 9.2 },
-                { name: 'Shenzhen Electronics', rating: 8.9 },
-                { name: 'Wuhan Steel Mills', rating: 7.5 },
-              ].map((supplier, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div>
-                    <span className="text-gray-300 font-medium">{idx + 1}. {supplier.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex text-[#d4a843]">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <span key={i}>
-                          {i < Math.floor(supplier.rating / 2) ? '★' : '☆'}
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-400">{supplier.rating}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </DashboardLayout>

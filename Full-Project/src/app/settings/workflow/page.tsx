@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { DEMO_USERS, DEMO_COMPANIES } from '@/lib/demo-data';
+
+interface ApiUser {
+  id: string;
+  full_name_en: string;
+  email: string;
+  account_type: string;
+}
 
 interface WorkflowStage {
   id: string;
@@ -20,12 +26,14 @@ interface WorkflowConfig {
   requireNoteOnReject: boolean;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const defaultConfig: WorkflowConfig = {
   operationType: 'Purchase Requests',
-  stages: [
-    { id: '1', roleType: 'Reviewer', userId: 'user-001', userName: 'Ahmed Al-Rajhi' },
-    { id: '2', roleType: 'Approver', userId: 'user-003', userName: 'Mohammad Al-Shammari' },
-  ],
+  stages: [],
   allowDelegation: true,
   autoApproveAfterDays: 7,
   notifyOnEachStage: true,
@@ -35,6 +43,40 @@ const defaultConfig: WorkflowConfig = {
 export default function WorkflowSettingsPage() {
   const [config, setConfig] = useState<WorkflowConfig>(defaultConfig);
   const [saved, setSaved] = useState(false);
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await fetch('/api/admin/users?limit=100', {
+        headers: { ...getAuthHeaders() },
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUsers(json.data);
+          if (json.data.length > 0 && config.stages.length === 0) {
+            setConfig(prev => ({
+              ...prev,
+              stages: [
+                { id: '1', roleType: 'Reviewer', userId: json.data[0].id, userName: json.data[0].full_name_en },
+              ],
+            }));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const operationTypes: WorkflowConfig['operationType'][] = [
     'Purchase Requests',
@@ -48,11 +90,12 @@ export default function WorkflowSettingsPage() {
   const roleTypes: WorkflowStage['roleType'][] = ['Creator', 'Reviewer', 'Approver', 'Final Approver'];
 
   const handleAddStage = () => {
+    const defaultUser = users[0];
     const newStage: WorkflowStage = {
       id: String(config.stages.length + 1),
       roleType: 'Reviewer',
-      userId: DEMO_USERS[0].id,
-      userName: `${DEMO_USERS[0].firstName} ${DEMO_USERS[0].lastName}`,
+      userId: defaultUser?.id || '',
+      userName: defaultUser?.full_name_en || 'Select User',
     };
     setConfig({ ...config, stages: [...config.stages, newStage] });
   };
@@ -64,7 +107,7 @@ export default function WorkflowSettingsPage() {
     });
   };
 
-  const handleStageChange = (id: string, field: keyof WorkflowStage, value: any) => {
+  const handleStageChange = (id: string, field: keyof WorkflowStage, value: string) => {
     setConfig({
       ...config,
       stages: config.stages.map(stage =>
@@ -79,10 +122,7 @@ export default function WorkflowSettingsPage() {
   };
 
   return (
-    <DashboardLayout
-      user={{ name: 'Company Manager', initials: 'CM' }}
-      isAuthenticated={true}
-    >
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -123,76 +163,86 @@ export default function WorkflowSettingsPage() {
                 <h2 className="text-lg font-semibold text-white">Approval Stages ({config.stages.length})</h2>
                 <button
                   onClick={handleAddStage}
-                  disabled={config.stages.length >= 5}
+                  disabled={config.stages.length >= 5 || loadingUsers}
                   className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   + Add Stage
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {config.stages.map((stage, index) => (
-                  <div
-                    key={stage.id}
-                    className="bg-[#0c0f14] border border-[#242830] rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-[#d4a843] text-[#0c0f14] flex items-center justify-center font-semibold">
-                        {index + 1}
-                      </div>
-                      <h3 className="font-semibold text-white">Stage {index + 1}</h3>
-                      {config.stages.length > 1 && (
-                        <button
-                          onClick={() => handleRemoveStage(stage.id)}
-                          className="ml-auto px-3 py-1 bg-red-600 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm text-gray-400 mb-2">Role Type</label>
-                        <select
-                          value={stage.roleType}
-                          onChange={(e) =>
-                            handleStageChange(stage.id, 'roleType', e.target.value as WorkflowStage['roleType'])
-                          }
-                          className="w-full bg-[#1a1d23] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none transition-colors"
-                        >
-                          {roleTypes.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
+              {loadingUsers ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-[#c41e3a] border-t-transparent rounded-full mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Loading users...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {config.stages.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">No stages configured. Click &quot;+ Add Stage&quot; to begin.</p>
+                  )}
+                  {config.stages.map((stage, index) => (
+                    <div
+                      key={stage.id}
+                      className="bg-[#0c0f14] border border-[#242830] rounded-lg p-4 space-y-3"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-full bg-[#d4a843] text-[#0c0f14] flex items-center justify-center font-semibold">
+                          {index + 1}
+                        </div>
+                        <h3 className="font-semibold text-white">Stage {index + 1}</h3>
+                        {config.stages.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveStage(stage.id)}
+                            className="ml-auto px-3 py-1 bg-red-600 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
 
-                      <div>
-                        <label className="block text-sm text-gray-400 mb-2">Assigned User</label>
-                        <select
-                          value={stage.userId}
-                          onChange={(e) => {
-                            const user = DEMO_USERS.find(u => u.id === e.target.value);
-                            if (user) {
-                              handleStageChange(stage.id, 'userId', user.id);
-                              handleStageChange(stage.id, 'userName', `${user.firstName} ${user.lastName}`);
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm text-gray-400 mb-2">Role Type</label>
+                          <select
+                            value={stage.roleType}
+                            onChange={(e) =>
+                              handleStageChange(stage.id, 'roleType', e.target.value)
                             }
-                          }}
-                          className="w-full bg-[#1a1d23] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none transition-colors"
-                        >
-                          {DEMO_USERS.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.firstName} {user.lastName}
-                            </option>
-                          ))}
-                        </select>
+                            className="w-full bg-[#1a1d23] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none transition-colors"
+                          >
+                            {roleTypes.map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm text-gray-400 mb-2">Assigned User</label>
+                          <select
+                            value={stage.userId}
+                            onChange={(e) => {
+                              const user = users.find(u => u.id === e.target.value);
+                              if (user) {
+                                handleStageChange(stage.id, 'userId', user.id);
+                                handleStageChange(stage.id, 'userName', user.full_name_en);
+                              }
+                            }}
+                            className="w-full bg-[#1a1d23] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none transition-colors"
+                          >
+                            {users.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.full_name_en}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Options */}
@@ -260,7 +310,7 @@ export default function WorkflowSettingsPage() {
               </button>
               {saved && (
                 <div className="px-4 py-3 bg-green-600 bg-opacity-20 text-green-400 rounded-lg">
-                  ✓ Configuration saved successfully
+                  Configuration saved successfully
                 </div>
               )}
             </div>
@@ -272,6 +322,9 @@ export default function WorkflowSettingsPage() {
             <p className="text-sm text-gray-400 mb-4">{config.operationType}</p>
 
             <div className="space-y-3">
+              {config.stages.length === 0 && (
+                <p className="text-gray-500 text-sm">No stages configured</p>
+              )}
               {config.stages.map((stage, index) => (
                 <div key={stage.id}>
                   <div className="flex items-center gap-3">
