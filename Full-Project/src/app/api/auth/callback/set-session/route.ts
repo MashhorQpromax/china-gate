@@ -56,16 +56,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Log OAuth login in security audit (best effort)
-    await supabaseAdmin.from('security_audit_log').insert({
-      user_id: user.id,
-      action: 'oauth_login',
-      action_type: 'auth',
-      description: `OAuth login via ${user.app_metadata?.provider || 'unknown'}`,
-      ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
-      user_agent: request.headers.get('user-agent') || '',
-      metadata: { provider: user.app_metadata?.provider, email: user.email },
-      risk_level: 'low',
-    }).catch(() => {});
+    try {
+      await supabaseAdmin.from('security_audit_log').insert({
+        user_id: user.id,
+        action: 'oauth_login',
+        action_type: 'auth',
+        description: `OAuth login via ${user.app_metadata?.provider || 'unknown'}`,
+        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
+        user_agent: request.headers.get('user-agent') || '',
+        metadata: { provider: user.app_metadata?.provider, email: user.email },
+        risk_level: 'low',
+      });
+    } catch {
+      // Ignore audit log errors
+    }
 
     // Determine redirect based on account type
     const dashboardMap: Record<string, string> = {
