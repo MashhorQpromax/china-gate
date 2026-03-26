@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface ProductDetailPageProps {
   params: {
@@ -99,12 +100,20 @@ interface ProductDetail {
 }
 
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const router = useRouter();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [inquiryQuantity, setInquiryQuantity] = useState('');
   const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in
+  useEffect(() => {
+    const hasToken = document.cookie.includes('access_token=');
+    setIsLoggedIn(hasToken);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
@@ -125,7 +134,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout user={{ name: 'Buyer', initials: 'B' }} isAuthenticated={true}>
+      <DashboardLayout user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }} isAuthenticated={isLoggedIn} onLogin={() => router.push('/login')}>
         <div className="space-y-8 animate-pulse">
           <div className="h-6 bg-[#242830] rounded w-48" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -150,7 +159,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   if (error || !product) {
     return (
-      <DashboardLayout user={{ name: 'Buyer', initials: 'B' }} isAuthenticated={true}>
+      <DashboardLayout user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }} isAuthenticated={isLoggedIn} onLogin={() => router.push('/login')}>
         <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-12 text-center">
           <p className="text-gray-400 text-lg mb-2">{error || 'Product not found'}</p>
           <Link href="/marketplace/products" className="text-[#d4a843] hover:underline">
@@ -206,7 +215,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const unitPrice = getUnitPrice(qty);
 
   return (
-    <DashboardLayout user={{ name: 'Buyer', initials: 'B' }} isAuthenticated={true}>
+    <DashboardLayout user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }} isAuthenticated={isLoggedIn} onLogin={() => router.push('/login')}>
       <div className="space-y-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm">
@@ -447,16 +456,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowInquiryModal(true)}
+                onClick={() => isLoggedIn ? setShowInquiryModal(true) : router.push('/login?redirect=/marketplace/products/' + product.id)}
                 className="flex-1 px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
               >
-                Add to Inquiry
+                {isLoggedIn ? 'Add to Inquiry' : 'Login to Inquire'}
               </button>
               <Link
-                href={`/marketplace/requests?product=${product.id}`}
+                href={isLoggedIn ? `/marketplace/requests?product=${product.id}` : `/login?redirect=/marketplace/products/${product.id}`}
                 className="flex-1 px-6 py-3 border-2 border-[#d4a843] text-[#d4a843] rounded-lg hover:bg-[#d4a843] hover:text-[#0c0f14] transition-colors font-semibold text-center"
               >
-                Request Quote
+                {isLoggedIn ? 'Request Quote' : 'Login to Quote'}
               </Link>
             </div>
           </div>

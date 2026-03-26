@@ -19,6 +19,10 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/api/tracking/session',
   '/api/tracking/events',
+  // Public marketplace (browsing without login)
+  '/marketplace',
+  '/api/products',
+  '/api/categories',
 ];
 
 // Routes accessible without complete profile (browse only)

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductCard from '@/components/marketplace/ProductCard';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Category {
   id: string;
@@ -38,6 +39,7 @@ interface Product {
 type SortOption = 'newest' | 'price_low' | 'price_high' | 'rating' | 'popular';
 
 export default function ProductsMarketplacePage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +50,15 @@ export default function ProductsMarketplacePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
+
+  // Check if user is logged in
+  useEffect(() => {
+    const hasToken = document.cookie.includes('access_token=');
+    setIsLoggedIn(hasToken);
+  }, []);
 
   // Fetch categories
   useEffect(() => {
@@ -123,8 +132,9 @@ export default function ProductsMarketplacePage() {
 
   return (
     <DashboardLayout
-      user={{ name: 'Buyer', initials: 'B' }}
-      isAuthenticated={true}
+      user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }}
+      isAuthenticated={isLoggedIn}
+      onLogin={() => router.push('/login')}
     >
       <div className="space-y-8">
         {/* Header */}
