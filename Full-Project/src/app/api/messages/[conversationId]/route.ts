@@ -60,10 +60,32 @@ export async function GET(
       return apiServerError('Failed to fetch messages');
     }
 
+    // Fetch profiles for all participants
+    const participantIds = conversation.participant_ids || [];
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id, full_name_en, full_name_ar, company_name, account_type')
+      .in('id', participantIds);
+
+    const profileMap: Record<string, { full_name_en: string; company_name: string }> = {};
+    if (profiles) {
+      for (const p of profiles) {
+        profileMap[p.id] = p;
+      }
+    }
+
+    // Attach sender info to each message
+    const messagesWithSender = (messages || []).map((msg) => ({
+      ...msg,
+      sender_name: profileMap[msg.sender_id]?.full_name_en || 'Unknown',
+      sender_company: profileMap[msg.sender_id]?.company_name || '',
+    }));
+
     // Return messages with conversation info
     const response = {
       conversation,
-      messages: messages || [],
+      messages: messagesWithSender,
+      participants: profileMap,
     };
 
     return apiPaginated([response], {

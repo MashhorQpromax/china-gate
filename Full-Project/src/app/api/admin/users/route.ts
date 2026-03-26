@@ -12,7 +12,7 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getRequestUser(request);
+    const user = getRequestUser(request);
 
     // Check admin access
     if (!user.isAuthenticated || !user.isAdmin) {
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return apiPaginated(enrichedUsers, page, limit, count || 0, 'Users retrieved successfully');
+    return apiPaginated(enrichedUsers, { page, limit, total: count || 0 });
   } catch (error) {
     console.error('Admin users route error:', error);
     return apiServerError('Internal server error');

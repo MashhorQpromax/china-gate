@@ -131,7 +131,7 @@ export function getPaginationParams(input: URL | Request) {
 }
 
 // Parse sort params (accepts URL or NextRequest)
-export function getSortParams(input: URL | Request, allowedFields: string[], _defaultField?: string) {
+export function getSortParams(input: URL | Request, allowedFields: string[] = ['created_at'], _defaultField?: string) {
   const searchParams = getSearchParams(input);
   const sortBy = searchParams.get('sort_by') || 'created_at';
   const sortOrder = searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';

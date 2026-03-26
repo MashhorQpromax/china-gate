@@ -41,28 +41,55 @@ export async function GET(request: NextRequest) {
       return apiServerError('Failed to fetch conversations');
     }
 
-    // Get last few messages for each conversation
+    // Get last few messages and participant profiles for each conversation
     if (conversations && conversations.length > 0) {
       const conversationIds = conversations.map((c) => c.id);
 
-      const { data: messages, error: messagesError } = await supabaseAdmin
-        .from('messages')
-        .select('*')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false });
+      // Collect all unique participant IDs
+      const allParticipantIds = [
+        ...new Set(conversations.flatMap((c) => c.participant_ids || [])),
+      ];
 
-      if (messagesError) {
-        console.error('Error fetching messages:', messagesError);
+      // Fetch messages and profiles in parallel
+      const [messagesResult, profilesResult] = await Promise.all([
+        supabaseAdmin
+          .from('messages')
+          .select('*')
+          .in('conversation_id', conversationIds)
+          .order('created_at', { ascending: false }),
+        supabaseAdmin
+          .from('profiles')
+          .select('id, full_name_en, full_name_ar, company_name, account_type')
+          .in('id', allParticipantIds),
+      ]);
+
+      if (messagesResult.error) {
+        console.error('Error fetching messages:', messagesResult.error);
         return apiServerError('Failed to fetch messages');
       }
 
-      // Attach messages to conversations
-      const conversationsWithMessages = conversations.map((conv) => ({
-        ...conv,
-        messages: (messages || [])
-          .filter((msg) => msg.conversation_id === conv.id)
-          .slice(0, 5),
-      }));
+      // Build a profile lookup map
+      const profileMap: Record<string, { full_name_en: string; full_name_ar: string; company_name: string; account_type: string }> = {};
+      if (profilesResult.data) {
+        for (const p of profilesResult.data) {
+          profileMap[p.id] = p;
+        }
+      }
+
+      // Attach messages and participant info to conversations
+      const conversationsWithMessages = conversations.map((conv) => {
+        const participantProfiles = (conv.participant_ids || [])
+          .filter((pid: string) => pid !== user.id)
+          .map((pid: string) => profileMap[pid] || { id: pid, full_name_en: 'Unknown', full_name_ar: 'غير معروف', company_name: '', account_type: '' });
+
+        return {
+          ...conv,
+          messages: (messagesResult.data || [])
+            .filter((msg) => msg.conversation_id === conv.id)
+            .slice(0, 5),
+          participants: participantProfiles,
+        };
+      });
 
       return apiPaginated(conversationsWithMessages, {
         page,
