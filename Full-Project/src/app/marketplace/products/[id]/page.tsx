@@ -510,7 +510,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 {isLoggedIn ? 'Add to Inquiry' : 'Login to Inquire'}
               </button>
               <Link
-                href={isLoggedIn ? `/marketplace/requests?product=${product.id}` : `/login?redirect=/marketplace/products/${product.id}`}
+                href={isLoggedIn
+                  ? `/marketplace/requests/new?product=${encodeURIComponent(product.name_en)}&category=${product.category_id || ''}`
+                  : `/login?redirect=/marketplace/products/${product.id}`}
                 className="flex-1 px-6 py-3 border-2 border-[#d4a843] text-[#d4a843] rounded-lg hover:bg-[#d4a843] hover:text-[#0c0f14] transition-colors font-semibold text-center"
               >
                 {isLoggedIn ? 'Request Quote' : 'Login to Quote'}
