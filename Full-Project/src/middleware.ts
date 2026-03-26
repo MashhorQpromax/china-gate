@@ -14,6 +14,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/logout',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/social',
+  '/api/auth/callback',
   '/api/tracking/session',
   '/api/tracking/events',
 ];

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { validateEmail, validatePhone } from '@/lib/validation';
 import { collectClientInfo } from '@/lib/tracking/client-info';
 
-type LoginTab = 'email' | 'phone' | 'qrcode';
+type LoginTab = 'email' | 'phone';
 
 interface CountryCode {
   name: string;
@@ -140,9 +140,11 @@ export default function LoginPage() {
     setErrors({});
   };
 
-  // Social login handler
+  // Social login handler - redirect to OAuth API route
   const handleSocialLogin = (provider: string) => {
-    alert(`Coming soon: ${provider} login`);
+    setIsLoading(true);
+    setGeneralError('');
+    window.location.href = `/api/auth/social?provider=${provider.toLowerCase()}`;
   };
 
   return (
@@ -199,23 +201,6 @@ export default function LoginPage() {
           )}
         </button>
 
-        <button
-          onClick={() => {
-            setActiveTab('qrcode');
-            setGeneralError('');
-            setErrors({});
-          }}
-          className={`pb-3 font-medium text-sm transition relative ${
-            activeTab === 'qrcode'
-              ? 'text-[#c41e3a]'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          QR Code
-          {activeTab === 'qrcode' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#c41e3a]" />
-          )}
-        </button>
       </div>
 
       {/* Email Tab */}
@@ -423,27 +408,6 @@ export default function LoginPage() {
         </form>
       )}
 
-      {/* QR Code Tab */}
-      {activeTab === 'qrcode' && (
-        <div className="space-y-5">
-          {/* QR Code Placeholder */}
-          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <svg className="w-16 h-16 text-gray-400 mb-3" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" />
-            </svg>
-            <p className="text-gray-700 font-medium mb-1">Scan to login</p>
-            <p className="text-gray-600 text-sm">Use WeChat or China Gate app to scan</p>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <p className="text-blue-900 text-sm">
-              QR Code login feature coming soon. Download the China Gate app for mobile login.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Divider */}
       <div className="my-8 flex items-center gap-4">
         <div className="flex-1 h-px bg-gray-300" />
@@ -480,17 +444,6 @@ export default function LoginPage() {
           Continue with Apple
         </button>
 
-        {/* WeChat */}
-        <button
-          type="button"
-          onClick={() => handleSocialLogin('WeChat')}
-          className="w-full flex items-center justify-center gap-3 bg-[#07C160] hover:bg-[#059952] text-white font-medium py-3 rounded-lg transition"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-          </svg>
-          Continue with WeChat
-        </button>
       </div>
 
       {/* Footer Links */}
