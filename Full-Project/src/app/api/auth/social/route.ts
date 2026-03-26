@@ -1,8 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +12,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=invalid_provider', request.url));
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
     // Get the site URL for redirect
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://china-gate.vercel.app';
+
+    // Collect cookies that Supabase SSR sets (including PKCE code_verifier)
+    const cookiesToSet: { name: string; value: string; options: CookieOptions }[] = [];
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            cookiesToSet.push({ name, value, options });
+          },
+          remove(name: string, options: CookieOptions) {
+            cookiesToSet.push({ name, value: '', options });
+          },
+        },
+      }
+    );
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider as 'google' | 'apple',
@@ -37,7 +53,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to OAuth provider
-    return NextResponse.redirect(data.url);
+    const response = NextResponse.redirect(data.url);
+
+    // Set all cookies from Supabase SSR (PKCE code_verifier etc.)
+    for (const cookie of cookiesToSet) {
+      response.cookies.set(cookie.name, cookie.value, cookie.options as any);
+    }
+
+    return response;
   } catch (error) {
     console.error('Social auth error:', error);
     return NextResponse.redirect(new URL('/login?error=server_error', request.url));

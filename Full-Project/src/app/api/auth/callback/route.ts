@@ -1,3 +1,4 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -24,8 +25,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=no_code', request.url));
     }
 
-    // Exchange the code for a session
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    // Use SSR client that reads PKCE code_verifier from cookies
+    const cookiesToSet: { name: string; value: string; options: CookieOptions }[] = [];
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookiesToSet.push({ name, value, options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookiesToSet.push({ name, value: '', options });
+        },
+      },
+    });
+
+    // Exchange the code for a session (PKCE verifier read from cookies)
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (exchangeError || !data.session) {
@@ -119,6 +136,11 @@ export async function GET(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     });
+
+    // Also set any Supabase SSR cookies (cleanup PKCE verifier, etc.)
+    for (const cookie of cookiesToSet) {
+      response.cookies.set(cookie.name, cookie.value, cookie.options as any);
+    }
 
     return response;
   } catch (error) {
