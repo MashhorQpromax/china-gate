@@ -129,16 +129,20 @@ export async function POST(request: NextRequest) {
 
     // Log registration in security audit
     if (authData.user) {
-      await supabase.from('security_audit_log').insert({
-        user_id: authData.user.id,
-        action: 'account_created',
-        action_type: 'auth',
-        description: `New ${accountType} account created: ${email}`,
-        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
-        user_agent: request.headers.get('user-agent') || '',
-        metadata: { email, accountType, company: companyName, country, city },
-        risk_level: 'low',
-      }).catch(() => {});
+      try {
+        await supabase.from('security_audit_log').insert({
+          user_id: authData.user.id,
+          action: 'account_created',
+          action_type: 'auth',
+          description: `New ${accountType} account created: ${email}`,
+          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
+          user_agent: request.headers.get('user-agent') || '',
+          metadata: { email, accountType, company: companyName, country, city },
+          risk_level: 'low',
+        });
+      } catch {
+        // Ignore audit log errors
+      }
     }
 
     return NextResponse.json(

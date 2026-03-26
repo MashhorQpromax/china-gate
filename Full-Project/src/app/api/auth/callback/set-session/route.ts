@@ -71,14 +71,20 @@ export async function POST(request: NextRequest) {
       // Ignore audit log errors
     }
 
-    // Determine redirect based on account type
-    const dashboardMap: Record<string, string> = {
-      gulf_buyer: '/dashboard/buyer',
-      chinese_supplier: '/dashboard/supplier',
-      gulf_manufacturer: '/dashboard/manufacturer',
-      admin: '/dashboard/admin',
-    };
-    const redirectTo = dashboardMap[profile?.account_type || ''] || '/dashboard/buyer';
+    // Check if profile is complete (has phone and company_name)
+    const isProfileComplete = profile?.phone && profile?.company_name;
+
+    // Redirect to complete-profile if new OAuth user, otherwise to dashboard
+    let redirectTo = '/complete-profile';
+    if (isProfileComplete) {
+      const dashboardMap: Record<string, string> = {
+        gulf_buyer: '/dashboard/buyer',
+        chinese_supplier: '/dashboard/supplier',
+        gulf_manufacturer: '/dashboard/manufacturer',
+        admin: '/dashboard/admin',
+      };
+      redirectTo = dashboardMap[profile?.account_type || ''] || '/dashboard/buyer';
+    }
 
     // Build response with httpOnly cookies
     const response = NextResponse.json({

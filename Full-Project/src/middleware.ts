@@ -21,6 +21,15 @@ const PUBLIC_ROUTES = [
   '/api/tracking/events',
 ];
 
+// Routes accessible without complete profile (browse only)
+const BROWSE_ROUTES = [
+  '/complete-profile',
+  '/api/auth/complete-profile',
+  '/api/auth/logout',
+  '/marketplace',
+  '/settings',
+];
+
 // Routes that need specific roles
 const ROLE_ROUTES: Record<string, string[]> = {
   '/dashboard/admin': ['admin'],
@@ -114,7 +123,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('account_type, account_status')
+      .select('account_type, account_status, phone, company_name')
       .eq('id', user.id)
       .single();
 
@@ -127,6 +136,22 @@ export async function middleware(request: NextRequest) {
         );
       }
       return NextResponse.redirect(new URL('/login?error=suspended', request.url));
+    }
+
+    // Check if profile is complete (OAuth users may not have filled in their details)
+    const isProfileComplete = profile?.phone && profile?.company_name;
+    const isBrowseRoute = BROWSE_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
+
+    if (!isProfileComplete && !isBrowseRoute && !pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/complete-profile', request.url));
+    }
+
+    // For API routes, block feature-related APIs if profile incomplete (allow auth APIs)
+    if (!isProfileComplete && pathname.startsWith('/api/') && !isBrowseRoute && !pathname.startsWith('/api/auth/')) {
+      return NextResponse.json(
+        { error: 'Profile incomplete. Please complete your profile first.', code: 'PROFILE_INCOMPLETE' },
+        { status: 403 }
+      );
     }
 
     // Check role-based access for dashboard routes
