@@ -71,8 +71,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow public routes
+  // Allow public routes (but still inject auth headers if user has a token)
   if (isPublicRoute(pathname)) {
+    // For public API routes, try to inject auth headers if token exists
+    // This allows POST /api/products to work for authenticated suppliers
+    const publicToken = request.cookies.get('access_token')?.value ||
+      request.headers.get('Authorization')?.replace('Bearer ', '');
+
+    if (publicToken && pathname.startsWith('/api/')) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: `Bearer ${publicToken}` } } }
+        );
+        const { data: { user } } = await supabase.auth.getUser(publicToken);
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('account_type')
+            .eq('id', user.id)
+            .single();
+
+          const requestHeaders = new Headers(request.headers);
+          requestHeaders.set('x-user-id', user.id);
+          requestHeaders.set('x-user-email', user.email || '');
+          requestHeaders.set('x-user-role', profile?.account_type || '');
+          return NextResponse.next({ request: { headers: requestHeaders } });
+        }
+      } catch {
+        // Token invalid on public route — just proceed without auth headers
+      }
+    }
     return NextResponse.next();
   }
 
