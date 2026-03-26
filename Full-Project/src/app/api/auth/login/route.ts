@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user profile
-    const { data: profile } = await supabase
+    // Get user profile (use admin client to bypass RLS)
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
