@@ -41,7 +41,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (supplierId) {
-      query = query.eq('supplier_id', supplierId);
+      // 'me' resolves to the current authenticated user
+      const resolvedSupplierId = supplierId === 'me'
+        ? request.headers.get('x-user-id')
+        : supplierId;
+      if (resolvedSupplierId) {
+        query = query.eq('supplier_id', resolvedSupplierId);
+      }
     }
 
     if (search) {
@@ -171,9 +177,12 @@ export async function POST(request: NextRequest) {
       variants,
     } = body;
 
-    if (!supplierId || !nameEn) {
+    // Resolve supplier ID: use body value or fall back to authenticated user
+    const resolvedSupplierId = supplierId || request.headers.get('x-user-id');
+
+    if (!resolvedSupplierId || !nameEn) {
       return NextResponse.json(
-        { error: 'Missing required fields: supplierId, nameEn' },
+        { error: 'Missing required fields: nameEn (and authentication required)' },
         { status: 400 }
       );
     }
@@ -188,7 +197,7 @@ export async function POST(request: NextRequest) {
     const { data: product, error: productError } = await supabase
       .from('products')
       .insert({
-        supplier_id: supplierId,
+        supplier_id: resolvedSupplierId,
         sku,
         name_en: nameEn,
         name_ar: nameAr || null,

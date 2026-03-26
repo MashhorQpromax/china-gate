@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import Link from 'next/link';
 
 interface Deal {
   id: string;
@@ -415,9 +416,9 @@ export default function SupplierDashboardPage() {
                 <button className="w-full px-4 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm">
                   Submit Quotation
                 </button>
-                <button className="w-full px-4 py-3 bg-[#d4a843] text-[#0c0f14] rounded-lg hover:bg-yellow-500 transition-colors font-semibold text-sm">
+                <Link href="/dashboard/supplier/products" className="block w-full px-4 py-3 bg-[#d4a843] text-[#0c0f14] rounded-lg hover:bg-yellow-500 transition-colors font-semibold text-sm text-center">
                   My Products
-                </button>
+                </Link>
                 <button className="w-full px-4 py-3 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors font-semibold text-sm">
                   Active Shipments
                 </button>
