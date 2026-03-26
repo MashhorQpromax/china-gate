@@ -22,23 +22,7 @@ export async function GET(
 
     const { data, error } = await supabaseAdmin
       .from('letters_of_credit')
-      .select(
-        `
-        *,
-        deals (
-          id,
-          reference_number,
-          buyer_id,
-          supplier_id,
-          product,
-          quantity,
-          unit_price,
-          total_value,
-          currency,
-          status
-        )
-        `
-      )
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -106,23 +90,7 @@ export async function PATCH(
       .from('letters_of_credit')
       .update(updateData)
       .eq('id', id)
-      .select(
-        `
-        *,
-        deals (
-          id,
-          reference_number,
-          buyer_id,
-          supplier_id,
-          product,
-          quantity,
-          unit_price,
-          total_value,
-          currency,
-          status
-        )
-        `
-      )
+      .select('*')
       .single();
 
     if (error) throw error;

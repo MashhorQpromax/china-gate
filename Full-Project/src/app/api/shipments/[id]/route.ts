@@ -39,23 +39,7 @@ export async function GET(
 
     let query = supabaseAdmin
       .from('shipments')
-      .select(
-        `
-        *,
-        deals:deal_id (
-          id,
-          reference_number,
-          supplier_id,
-          buyer_id,
-          product_details,
-          quantity,
-          unit_price,
-          total_amount,
-          currency,
-          status
-        )
-      `
-      )
+      .select('*')
       .eq('id', id)
       .single();
 

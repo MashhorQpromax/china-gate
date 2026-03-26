@@ -1,130 +1,136 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
-interface Deal {
+interface ApiDeal {
   id: string;
-  reference: string;
-  buyer: string;
-  supplier: string;
-  amount: number;
+  reference_number: string;
+  buyer_id: string;
+  supplier_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_value: number;
+  currency: string;
   stage: string;
-  date: string;
+  created_at: string;
+  buyer_name?: string;
+  supplier_name?: string;
 }
 
-const demoDeals: Deal[] = [
-  {
-    id: 'deal-001',
-    reference: '#2024-001',
-    buyer: 'Ahmed Al-Rashid',
-    supplier: 'Zhejiang Steel Manufacturing',
-    amount: 125000,
-    stage: 'Quality Inspection',
-    date: '2024-03-22',
-  },
-  {
-    id: 'deal-002',
-    reference: '#2024-002',
-    buyer: 'Mohammed Hassan',
-    supplier: 'Shanghai Electronics Components',
-    amount: 85000,
-    stage: 'Payment Verified',
-    date: '2024-03-20',
-  },
-  {
-    id: 'deal-003',
-    reference: '#2024-003',
-    buyer: 'Noor Al-Otaibi',
-    supplier: 'Jiangsu Solar Panel Manufacturing',
-    amount: 250000,
-    stage: 'Completed',
-    date: '2024-03-18',
-  },
-  {
-    id: 'deal-004',
-    reference: '#2024-004',
-    buyer: 'Ahmed Al-Rashid',
-    supplier: 'Shanghai Electronics Components',
-    amount: 95000,
-    stage: 'Quotation Received',
-    date: '2024-03-15',
-  },
-  {
-    id: 'deal-005',
-    reference: '#2024-005',
-    buyer: 'Fatima Al-Saud',
-    supplier: 'Zhejiang Steel Manufacturing',
-    amount: 175000,
-    stage: 'Dispute Opened',
-    date: '2024-03-12',
-  },
-  {
-    id: 'deal-006',
-    reference: '#2024-006',
-    buyer: 'Mohammed Hassan',
-    supplier: 'Jiangsu Solar Panel Manufacturing',
-    amount: 320000,
-    stage: 'Completed',
-    date: '2024-03-10',
-  },
-  {
-    id: 'deal-007',
-    reference: '#2024-007',
-    buyer: 'Noor Al-Otaibi',
-    supplier: 'Shanghai Electronics Components',
-    amount: 65000,
-    stage: 'Request Posted',
-    date: '2024-03-08',
-  },
-];
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-const stageColors = {
-  'Request Posted': 'bg-blue-500/20 text-blue-400',
-  'Quotation Received': 'bg-purple-500/20 text-purple-400',
-  'Payment Verified': 'bg-yellow-500/20 text-yellow-400',
-  'Quality Inspection': 'bg-orange-500/20 text-orange-400',
-  'Dispute Opened': 'bg-red-500/20 text-red-400',
-  'Completed': 'bg-green-500/20 text-green-400',
+function formatCurrency(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+}
+
+const stageLabels: Record<string, string> = {
+  negotiation: 'Negotiation',
+  quotation_sent: 'Quote Sent',
+  quotation_review: 'Quote Review',
+  quotation_accepted: 'Quote Accepted',
+  po_issued: 'PO Issued',
+  po_confirmed: 'PO Confirmed',
+  production_start: 'Production',
+  production_inspection: 'Quality Check',
+  ready_for_shipment: 'Ready to Ship',
+  lc_issued: 'LC Issued',
+  goods_shipped: 'Shipped',
+  goods_in_transit: 'In Transit',
+  port_arrived: 'Port Arrived',
+  customs_clearance: 'Customs',
+  delivery: 'Delivery',
+  completed: 'Completed',
+};
+
+const stageColors: Record<string, string> = {
+  negotiation: 'bg-blue-500/20 text-blue-400',
+  quotation_sent: 'bg-purple-500/20 text-purple-400',
+  quotation_review: 'bg-purple-500/20 text-purple-400',
+  quotation_accepted: 'bg-indigo-500/20 text-indigo-400',
+  po_issued: 'bg-yellow-500/20 text-yellow-400',
+  po_confirmed: 'bg-yellow-500/20 text-yellow-400',
+  production_start: 'bg-orange-500/20 text-orange-400',
+  production_inspection: 'bg-orange-500/20 text-orange-400',
+  ready_for_shipment: 'bg-cyan-500/20 text-cyan-400',
+  lc_issued: 'bg-teal-500/20 text-teal-400',
+  goods_shipped: 'bg-blue-500/20 text-blue-400',
+  goods_in_transit: 'bg-blue-500/20 text-blue-400',
+  port_arrived: 'bg-emerald-500/20 text-emerald-400',
+  customs_clearance: 'bg-amber-500/20 text-amber-400',
+  delivery: 'bg-green-500/20 text-green-400',
+  completed: 'bg-green-500/20 text-green-400',
 };
 
 export default function AdminDealsPage() {
-  const [deals, setDeals] = useState(demoDeals);
+  const [deals, setDeals] = useState<ApiDeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const itemsPerPage = 10;
-  const stages = ['all', ...new Set(deals.map(d => d.stage))];
+  const fetchDeals = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const filtered = useMemo(() => {
-    return deals.filter(deal => {
-      const matchesSearch =
-        deal.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        deal.buyer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        deal.supplier.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStage = filterStage === 'all' || deal.stage === filterStage;
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (filterStage !== 'all') params.set('stage', filterStage);
 
-      return matchesSearch && matchesStage;
-    });
-  }, [deals, searchTerm, filterStage]);
+      const res = await fetch(`/api/deals?${params}`, {
+        headers: { ...getAuthHeaders() },
+        credentials: 'include',
+      });
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedDeals = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setError('Please log in as admin to view deals');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
 
-  const totalValue = filtered.reduce((sum, deal) => sum + deal.amount, 0);
+      const json = await res.json();
+      if (json.success) {
+        let data = json.data || [];
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          data = data.filter((d: ApiDeal) =>
+            (d.reference_number || '').toLowerCase().includes(term) ||
+            (d.buyer_name || '').toLowerCase().includes(term) ||
+            (d.supplier_name || '').toLowerCase().includes(term) ||
+            (d.product_name || '').toLowerCase().includes(term)
+          );
+        }
+        setDeals(data);
+        setTotal(json.meta?.total || 0);
+        setTotalPages(json.meta?.totalPages || 1);
+      }
+    } catch (err) {
+      console.error('Failed to fetch deals:', err);
+      setError('Failed to load deals');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterStage, searchTerm]);
+
+  useEffect(() => {
+    fetchDeals();
+  }, [fetchDeals]);
+
+  const totalValue = deals.reduce((sum, d) => sum + (d.total_value || 0), 0);
+  const stages = ['all', ...Object.keys(stageLabels)];
 
   return (
-    <DashboardLayout
-      user={{ name: 'Admin', initials: 'AD' }}
-      isAuthenticated={true}
-      userRole="admin"
-    >
+    <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Deal Monitoring</h1>
           <p className="text-gray-400">Monitor and manage all active deals on the platform</p>
@@ -133,135 +139,114 @@ export default function AdminDealsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
-            <p className="text-gray-400 text-sm mb-2">Total Active Deals</p>
-            <p className="text-3xl font-bold text-white">{filtered.length}</p>
+            <p className="text-gray-400 text-sm mb-2">Total Deals</p>
+            <p className="text-3xl font-bold text-white">{total}</p>
           </div>
           <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
             <p className="text-gray-400 text-sm mb-2">Total Deal Value</p>
-            <p className="text-3xl font-bold text-white">${(totalValue / 1000000).toFixed(1)}M</p>
+            <p className="text-3xl font-bold text-white">{formatCurrency(totalValue)}</p>
           </div>
           <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
             <p className="text-gray-400 text-sm mb-2">Average Deal Value</p>
             <p className="text-3xl font-bold text-white">
-              ${filtered.length > 0 ? (totalValue / filtered.length / 1000).toFixed(0) : 0}K
+              {deals.length > 0 ? formatCurrency(totalValue / deals.length) : '$0'}
             </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 space-y-4">
+        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
-              placeholder="Search by reference, buyer, or supplier..."
+              placeholder="Search by reference, buyer, supplier, or product..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="bg-[#0c0f14] border border-[#242830] rounded px-4 py-3 text-white placeholder-gray-500 focus:border-[#c41e3a] outline-none"
             />
             <select
               value={filterStage}
-              onChange={(e) => {
-                setFilterStage(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setFilterStage(e.target.value); setPage(1); }}
               className="bg-[#0c0f14] border border-[#242830] rounded px-4 py-3 text-white focus:border-[#c41e3a] outline-none"
             >
               {stages.map(stage => (
                 <option key={stage} value={stage}>
-                  {stage === 'all' ? 'All Stages' : stage}
+                  {stage === 'all' ? 'All Stages' : stageLabels[stage] || stage}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Deals Table */}
-        <div className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-[#0c0f14] border-b border-[#242830]">
-                <tr className="text-gray-400">
-                  <th className="text-left py-4 px-6">Reference</th>
-                  <th className="text-left py-4 px-6">Buyer</th>
-                  <th className="text-left py-4 px-6">Supplier</th>
-                  <th className="text-right py-4 px-6">Amount</th>
-                  <th className="text-left py-4 px-6">Stage</th>
-                  <th className="text-left py-4 px-6">Date</th>
-                  <th className="text-right py-4 px-6">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedDeals.map((deal, idx) => (
-                  <tr
-                    key={deal.id}
-                    className={`border-b border-[#242830] hover:bg-[#242830] transition-colors ${
-                      idx % 2 === 0 ? 'bg-[#0c0f14]' : ''
-                    }`}
-                  >
-                    <td className="py-4 px-6 text-white font-semibold">{deal.reference}</td>
-                    <td className="py-4 px-6 text-gray-300">{deal.buyer}</td>
-                    <td className="py-4 px-6 text-gray-300">{deal.supplier}</td>
-                    <td className="py-4 px-6 text-right text-white font-semibold">
-                      ${deal.amount.toLocaleString()}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          stageColors[deal.stage as keyof typeof stageColors] || 'bg-gray-500/20 text-gray-400'
-                        }`}
-                      >
-                        {deal.stage}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-gray-400 text-xs">{deal.date}</td>
-                    <td className="py-4 px-6 text-right space-x-2 flex justify-end gap-2">
-                      <button className="px-3 py-1 text-blue-400 hover:text-blue-300 text-xs">
-                        Details
-                      </button>
-                      <button className="px-3 py-1 text-yellow-400 hover:text-yellow-300 text-xs">
-                        Intervene
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Error */}
+        {error && (
+          <div className="bg-[#1a1f2b] border border-red-600 rounded-lg p-6 text-center">
+            <p className="text-red-400 mb-3">{error}</p>
+            <button onClick={fetchDeals} className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 text-sm">Retry</button>
           </div>
-        </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="bg-[#1a1f2b] border border-gray-700 rounded-lg p-12 text-center">
+            <div className="animate-spin w-8 h-8 border-2 border-[#c41e3a] border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-gray-400">Loading deals...</p>
+          </div>
+        )}
+
+        {/* Table */}
+        {!loading && !error && (
+          <div className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[#0c0f14] border-b border-[#242830]">
+                  <tr className="text-gray-400">
+                    <th className="text-left py-4 px-6">Reference</th>
+                    <th className="text-left py-4 px-6">Buyer</th>
+                    <th className="text-left py-4 px-6">Supplier</th>
+                    <th className="text-left py-4 px-6">Product</th>
+                    <th className="text-right py-4 px-6">Amount</th>
+                    <th className="text-left py-4 px-6">Stage</th>
+                    <th className="text-left py-4 px-6">Date</th>
+                    <th className="text-right py-4 px-6">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deals.length === 0 && (
+                    <tr><td colSpan={8} className="py-8 text-center text-gray-500">No deals found</td></tr>
+                  )}
+                  {deals.map((deal, idx) => (
+                    <tr key={deal.id} className={`border-b border-[#242830] hover:bg-[#242830] transition-colors ${idx % 2 === 0 ? 'bg-[#0c0f14]' : ''}`}>
+                      <td className="py-4 px-6 text-white font-semibold">
+                        <a href={`/deals/${deal.id}`} className="text-[#d4a843] hover:text-yellow-300">{deal.reference_number || '-'}</a>
+                      </td>
+                      <td className="py-4 px-6 text-gray-300">{deal.buyer_name || 'Unknown'}</td>
+                      <td className="py-4 px-6 text-gray-300">{deal.supplier_name || 'Unknown'}</td>
+                      <td className="py-4 px-6 text-gray-300 text-xs">{deal.product_name || '-'}</td>
+                      <td className="py-4 px-6 text-right text-white font-semibold">{formatCurrency(deal.total_value, deal.currency)}</td>
+                      <td className="py-4 px-6">
+                        <span className={`text-xs px-2 py-1 rounded ${stageColors[deal.stage] || 'bg-gray-500/20 text-gray-400'}`}>
+                          {stageLabels[deal.stage] || deal.stage}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-gray-400 text-xs">{new Date(deal.created_at).toLocaleDateString()}</td>
+                      <td className="py-4 px-6 text-right">
+                        <a href={`/deals/${deal.id}`} className="text-[#d4a843] hover:text-yellow-300 text-xs font-semibold">View →</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
           <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] disabled:opacity-50 transition-colors"
-            >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  currentPage === page
-                    ? 'bg-[#c41e3a] text-white'
-                    : 'border border-[#242830] text-white hover:bg-[#242830]'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] disabled:opacity-50 transition-colors"
-            >
-              Next
-            </button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] disabled:opacity-50">Previous</button>
+            <span className="px-4 py-2 text-gray-400 text-sm">Page {page} of {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] disabled:opacity-50">Next</button>
           </div>
         )}
       </div>

@@ -1,64 +1,155 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import DealStageTracker from '@/components/deals/DealStageTracker';
-import RatingForm from '@/components/deals/RatingForm';
-import { DEMO_DEALS, DEMO_COMPANIES, DEMO_LCS, DEMO_SHIPMENTS, DEMO_QUALITY_JOURNEYS } from '@/lib/demo-data';
-import { DealStage } from '@/types';
 
-interface DealDetailPageProps {
-  params: {
-    id: string;
-  };
+interface DealDetail {
+  id: string;
+  reference_number: string;
+  buyer_id: string;
+  supplier_id: string;
+  product_name: string;
+  product_sku: string | null;
+  quantity: number;
+  unit_price: number;
+  total_value: number;
+  currency: string;
+  incoterm: string | null;
+  payment_terms: string | null;
+  shipping_port: string | null;
+  destination_port: string | null;
+  shipping_method: string | null;
+  expected_delivery_date: string | null;
+  stage: string;
+  stage_history: Array<{ stage?: string; from?: string; to?: string; timestamp: string; note?: string }>;
+  created_at: string;
+  updated_at: string;
+  buyer?: { full_name_en: string; company_name: string; country: string; city: string; phone: string; email: string };
+  supplier?: { full_name_en: string; company_name: string; country: string; city: string; phone: string; email: string };
+  timeline: Array<{ id: string; action: string; description: string; old_value: string | null; new_value: string | null; created_at: string }>;
+  shipments: Array<{ id: string; reference_number: string; status: string; carrier_name: string; estimated_arrival: string | null }>;
+  letters_of_credit: Array<{ id: string; reference_number: string; amount: number; currency: string; status: string; lc_type: string }>;
+  quality_inspections: Array<{ id: string; status: string; result: string | null; created_at: string }>;
 }
 
-export default function DealDetailPage({ params }: DealDetailPageProps) {
-  const [showRatingForm, setShowRatingForm] = useState(false);
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-  const deal = DEMO_DEALS.find(d => d.id === params.id) || DEMO_DEALS[0];
-  const buyer = DEMO_COMPANIES.find(c => c.id === deal.buyerId);
-  const supplier = DEMO_COMPANIES.find(c => c.id === deal.supplierId);
-  const lc = DEMO_LCS.find(l => l.dealId === deal.id);
-  const shipment = DEMO_SHIPMENTS.find(s => s.dealId === deal.id);
-  const qualityJourney = DEMO_QUALITY_JOURNEYS.find(q => q.dealId === deal.id);
+function formatCurrency(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+}
 
-  const stageLabels: Record<DealStage, string> = {
-    [DealStage.NEGOTIATION]: 'Negotiation',
-    [DealStage.QUOTATION_SENT]: 'Quote Sent',
-    [DealStage.QUOTATION_REVIEW]: 'Quote Review',
-    [DealStage.QUOTATION_ACCEPTED]: 'Quote Accepted',
-    [DealStage.PO_ISSUED]: 'PO Issued',
-    [DealStage.PO_CONFIRMED]: 'PO Confirmed',
-    [DealStage.PRODUCTION_START]: 'Production',
-    [DealStage.PRODUCTION_INSPECTION]: 'Quality Check',
-    [DealStage.READY_FOR_SHIPMENT]: 'Ready to Ship',
-    [DealStage.LC_ISSUED]: 'LC Issued',
-    [DealStage.GOODS_SHIPPED]: 'Shipped',
-    [DealStage.GOODS_IN_TRANSIT]: 'In Transit',
-    [DealStage.PORT_ARRIVED]: 'Port Arrived',
-    [DealStage.CUSTOMS_CLEARANCE]: 'Customs',
-    [DealStage.DELIVERY]: 'Delivery',
-    [DealStage.COMPLETED]: 'Completed',
-  };
+const stageOrder = [
+  'negotiation', 'quotation_sent', 'quotation_review', 'quotation_accepted',
+  'po_issued', 'po_confirmed', 'production_start', 'production_inspection',
+  'ready_for_shipment', 'lc_issued', 'goods_shipped', 'goods_in_transit',
+  'port_arrived', 'customs_clearance', 'delivery', 'completed',
+];
 
-  const timeline = [
-    { date: deal.createdAt, event: 'Deal Created', status: 'completed' },
-    { date: new Date(deal.updatedAt.getTime() + 2 * 24 * 60 * 60 * 1000), event: 'Quote Sent', status: 'completed' },
-    { date: new Date(deal.updatedAt.getTime() + 4 * 24 * 60 * 60 * 1000), event: 'Quote Accepted', status: 'completed' },
-    { date: new Date(deal.updatedAt.getTime() + 6 * 24 * 60 * 60 * 1000), event: 'PO Issued', status: deal.stage !== DealStage.NEGOTIATION ? 'completed' : 'pending' },
-    { date: deal.expectedDeliveryDate, event: 'Expected Delivery', status: 'pending' },
-  ];
+const stageLabels: Record<string, string> = {
+  negotiation: 'Negotiation',
+  quotation_sent: 'Quote Sent',
+  quotation_review: 'Quote Review',
+  quotation_accepted: 'Quote Accepted',
+  po_issued: 'PO Issued',
+  po_confirmed: 'PO Confirmed',
+  production_start: 'Production',
+  production_inspection: 'Quality Check',
+  ready_for_shipment: 'Ready to Ship',
+  lc_issued: 'LC Issued',
+  goods_shipped: 'Shipped',
+  goods_in_transit: 'In Transit',
+  port_arrived: 'Port Arrived',
+  customs_clearance: 'Customs',
+  delivery: 'Delivery',
+  completed: 'Completed',
+};
 
-  const actionButtons = {
-    [DealStage.QUOTATION_ACCEPTED]: { label: 'Issue PO', icon: '📄' },
-    [DealStage.PO_CONFIRMED]: { label: 'Start Production', icon: '🏭' },
-    [DealStage.PRODUCTION_INSPECTION]: { label: 'Start Inspection', icon: '🔍' },
-    [DealStage.READY_FOR_SHIPMENT]: { label: 'Book Shipping', icon: '📦' },
-    [DealStage.LC_ISSUED]: { label: 'Confirm Shipment', icon: '✓' },
-    [DealStage.PORT_ARRIVED]: { label: 'Clear Customs', icon: '🛂' },
-    [DealStage.CUSTOMS_CLEARANCE]: { label: 'Finalize Delivery', icon: '🚚' },
-  } as Record<DealStage, any>;
+function getStageColor(stage: string): string {
+  const idx = stageOrder.indexOf(stage);
+  if (idx < 4) return 'text-yellow-400';
+  if (idx < 8) return 'text-blue-400';
+  if (idx < 12) return 'text-purple-400';
+  if (idx < 15) return 'text-orange-400';
+  return 'text-green-400';
+}
+
+export default function DealDetailPage() {
+  const params = useParams();
+  const dealId = params?.id as string;
+
+  const [deal, setDeal] = useState<DealDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDeal = useCallback(async () => {
+    if (!dealId) return;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`/api/deals/${dealId}`, {
+        headers: { ...getAuthHeaders() },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setError('Please log in to view this deal');
+          return;
+        }
+        if (res.status === 404) {
+          setError('Deal not found');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      if (json.deal) {
+        setDeal(json.deal);
+      }
+    } catch (err) {
+      console.error('Failed to fetch deal:', err);
+      setError('Failed to load deal details');
+    } finally {
+      setLoading(false);
+    }
+  }, [dealId]);
+
+  useEffect(() => {
+    fetchDeal();
+  }, [fetchDeal]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="bg-[#1a1f2b] border border-gray-700 rounded-lg p-12 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-[#c41e3a] border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-400">Loading deal details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !deal) {
+    return (
+      <DashboardLayout>
+        <div className="bg-[#1a1f2b] border border-red-600 rounded-lg p-6 text-center">
+          <p className="text-red-400 mb-3">{error || 'Deal not found'}</p>
+          <div className="flex gap-3 justify-center">
+            <a href="/deals" className="px-4 py-2 border border-gray-700 text-white rounded-lg hover:bg-[#242830] text-sm">Back to Deals</a>
+            <button onClick={fetchDeal} className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 text-sm">Retry</button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const currentStageIdx = stageOrder.indexOf(deal.stage);
 
   return (
     <DashboardLayout>
@@ -71,151 +162,184 @@ export default function DealDetailPage({ params }: DealDetailPageProps) {
           <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-white">{deal.referenceNumber}</h1>
+                <h1 className="text-3xl font-bold text-white">{deal.reference_number || 'Deal'}</h1>
                 <p className="text-gray-400 mt-2">
-                  {buyer?.nameEn} → {supplier?.nameEn}
+                  {deal.buyer?.company_name || deal.buyer?.full_name_en || 'Buyer'} → {deal.supplier?.company_name || deal.supplier?.full_name_en || 'Supplier'}
                 </p>
+                <p className="text-gray-500 text-sm mt-1">{deal.product_name}</p>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-[#d4a843]">${(deal.totalValue / 1000000).toFixed(2)}M</p>
-                <span className="inline-block mt-2 px-3 py-1 rounded-full text-sm font-semibold bg-blue-500/20 text-blue-300">
-                  {stageLabels[deal.stage]}
+                <p className="text-3xl font-bold text-[#d4a843]">{formatCurrency(deal.total_value, deal.currency)}</p>
+                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-semibold bg-blue-500/20 ${getStageColor(deal.stage)}`}>
+                  {stageLabels[deal.stage] || deal.stage}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stage Tracker */}
-        <DealStageTracker currentStage={deal.stage} />
-
-        {/* Current Stage Details */}
+        {/* Stage Progress */}
         <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Stage Details: {stageLabels[deal.stage]}</h3>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-gray-400 text-sm">Quantity</p>
-                <p className="text-white font-semibold text-lg">{deal.quantity.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Unit Price</p>
-                <p className="text-white font-semibold text-lg">${deal.unitPrice}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Incoterm</p>
-                <p className="text-white font-semibold text-lg">{deal.incoterm}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Payment Terms</p>
-                <p className="text-white font-semibold text-lg">{deal.paymentTerms}</p>
-              </div>
-            </div>
+          <h3 className="text-lg font-semibold text-white mb-4">Deal Progress</h3>
+          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+            {stageOrder.map((stage, idx) => {
+              const isCompleted = idx < currentStageIdx;
+              const isCurrent = idx === currentStageIdx;
+              return (
+                <div key={stage} className="flex items-center flex-shrink-0">
+                  <div className={`w-3 h-3 rounded-full ${isCompleted ? 'bg-green-500' : isCurrent ? 'bg-[#c41e3a] animate-pulse' : 'bg-gray-600'}`} />
+                  {idx < stageOrder.length - 1 && (
+                    <div className={`w-6 h-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-600'}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-gray-400 text-sm mt-2">
+            Stage {currentStageIdx + 1} of {stageOrder.length}: <span className="text-white font-semibold">{stageLabels[deal.stage] || deal.stage}</span>
+          </p>
+        </div>
 
-            {actionButtons[deal.stage] && (
-              <button className="w-full mt-4 px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center gap-2">
-                <span>{actionButtons[deal.stage].icon}</span>
-                <span>{actionButtons[deal.stage].label}</span>
-              </button>
-            )}
+        {/* Stage Details */}
+        <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Deal Details</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-gray-400 text-sm">Quantity</p>
+              <p className="text-white font-semibold text-lg">{(deal.quantity || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Unit Price</p>
+              <p className="text-white font-semibold text-lg">{formatCurrency(deal.unit_price || 0, deal.currency)}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Incoterm</p>
+              <p className="text-white font-semibold text-lg">{deal.incoterm || '-'}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Payment Terms</p>
+              <p className="text-white font-semibold text-lg">{deal.payment_terms || '-'}</p>
+            </div>
           </div>
         </div>
 
         {/* Linked Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Agreement Details */}
-          <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors cursor-pointer">
-            <h3 className="text-lg font-semibold text-white mb-4">📋 Agreement Details</h3>
+          <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Agreement Details</h3>
             <div className="space-y-2 text-gray-400 text-sm">
-              <p><span className="text-gray-300">Reference:</span> {deal.referenceNumber}</p>
-              <p><span className="text-gray-300">Created:</span> {deal.createdAt.toLocaleDateString()}</p>
-              <p><span className="text-gray-300">Shipping Port:</span> {deal.shippingPort}</p>
-              <p><span className="text-gray-300">Destination Port:</span> {deal.destinationPort}</p>
+              <p><span className="text-gray-300">Reference:</span> {deal.reference_number}</p>
+              <p><span className="text-gray-300">Created:</span> {new Date(deal.created_at).toLocaleDateString()}</p>
+              <p><span className="text-gray-300">Shipping Port:</span> {deal.shipping_port || '-'}</p>
+              <p><span className="text-gray-300">Destination Port:</span> {deal.destination_port || '-'}</p>
+              <p><span className="text-gray-300">Shipping Method:</span> {deal.shipping_method || '-'}</p>
+              {deal.expected_delivery_date && (
+                <p><span className="text-gray-300">Expected Delivery:</span> {new Date(deal.expected_delivery_date).toLocaleDateString()}</p>
+              )}
             </div>
           </div>
 
-          {/* LC/Payment Info */}
-          {lc && (
-            <a href={`/lc/${lc.id}`} className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors">
-              <h3 className="text-lg font-semibold text-white mb-4">🏦 LC/Payment Info</h3>
+          {/* Buyer Info */}
+          {deal.buyer && (
+            <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">Buyer</h3>
               <div className="space-y-2 text-gray-400 text-sm">
-                <p><span className="text-gray-300">LC Reference:</span> {lc.referenceNumber}</p>
-                <p><span className="text-gray-300">Amount:</span> ${(lc.amount / 1000000).toFixed(2)}M</p>
-                <p><span className="text-gray-300">Type:</span> {lc.type}</p>
-                <p><span className="text-gray-300">Status:</span> <span className="text-yellow-300">{lc.status}</span></p>
+                <p><span className="text-gray-300">Name:</span> {deal.buyer.full_name_en}</p>
+                <p><span className="text-gray-300">Company:</span> {deal.buyer.company_name}</p>
+                <p><span className="text-gray-300">Location:</span> {deal.buyer.city}, {deal.buyer.country}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Supplier Info */}
+          {deal.supplier && (
+            <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">Supplier</h3>
+              <div className="space-y-2 text-gray-400 text-sm">
+                <p><span className="text-gray-300">Name:</span> {deal.supplier.full_name_en}</p>
+                <p><span className="text-gray-300">Company:</span> {deal.supplier.company_name}</p>
+                <p><span className="text-gray-300">Location:</span> {deal.supplier.city}, {deal.supplier.country}</p>
+              </div>
+            </div>
+          )}
+
+          {/* LC/Payment Info */}
+          {deal.letters_of_credit.length > 0 && (
+            <a href={`/lc/${deal.letters_of_credit[0].id}`} className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors">
+              <h3 className="text-lg font-semibold text-white mb-4">LC/Payment Info</h3>
+              <div className="space-y-2 text-gray-400 text-sm">
+                <p><span className="text-gray-300">LC Reference:</span> {deal.letters_of_credit[0].reference_number}</p>
+                <p><span className="text-gray-300">Amount:</span> {formatCurrency(deal.letters_of_credit[0].amount, deal.letters_of_credit[0].currency)}</p>
+                <p><span className="text-gray-300">Type:</span> {deal.letters_of_credit[0].lc_type}</p>
+                <p><span className="text-gray-300">Status:</span> <span className="text-yellow-300">{deal.letters_of_credit[0].status}</span></p>
               </div>
             </a>
           )}
 
           {/* Shipping Info */}
-          {shipment && (
-            <a href={`/shipping/${shipment.id}`} className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors">
-              <h3 className="text-lg font-semibold text-white mb-4">🚢 Shipping Info</h3>
+          {deal.shipments.length > 0 && (
+            <a href={`/shipping/${deal.shipments[0].id}`} className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors">
+              <h3 className="text-lg font-semibold text-white mb-4">Shipping Info</h3>
               <div className="space-y-2 text-gray-400 text-sm">
-                <p><span className="text-gray-300">Reference:</span> {shipment.referenceNumber}</p>
-                <p><span className="text-gray-300">Carrier:</span> {shipment.carrierName}</p>
-                <p><span className="text-gray-300">Status:</span> <span className="text-blue-300">{shipment.status}</span></p>
-                <p><span className="text-gray-300">Expected:</span> {shipment.expectedArrivalDate.toLocaleDateString()}</p>
+                <p><span className="text-gray-300">Reference:</span> {deal.shipments[0].reference_number}</p>
+                <p><span className="text-gray-300">Carrier:</span> {deal.shipments[0].carrier_name}</p>
+                <p><span className="text-gray-300">Status:</span> <span className="text-blue-300">{deal.shipments[0].status}</span></p>
+                {deal.shipments[0].estimated_arrival && (
+                  <p><span className="text-gray-300">Expected:</span> {new Date(deal.shipments[0].estimated_arrival).toLocaleDateString()}</p>
+                )}
               </div>
             </a>
           )}
-
-          {/* Quality Journey */}
-          {qualityJourney && (
-            <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">✅ Quality Journey</h3>
-              <div className="space-y-2 text-gray-400 text-sm">
-                <p><span className="text-gray-300">Status:</span> <span className="text-green-300">{qualityJourney.status}</span></p>
-                <p><span className="text-gray-300">Stages Completed:</span> {qualityJourney.stages.length}</p>
-                <p><span className="text-gray-300">Overall Result:</span> {qualityJourney.overallResult}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Workflow Approval */}
-          <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
-            <h3 className="text-lg font-semibold text-white mb-4">📊 Workflow Status</h3>
-            <div className="space-y-2 text-gray-400 text-sm">
-              <p><span className="text-gray-300">Approval:</span> <span className="text-green-300">Approved</span></p>
-              <p><span className="text-gray-300">Verified By:</span> Management</p>
-              <p><span className="text-gray-300">Date:</span> {deal.createdAt.toLocaleDateString()}</p>
-            </div>
-          </div>
         </div>
 
         {/* Timeline */}
         <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-6">Deal Timeline</h3>
-          <div className="space-y-4">
-            {timeline.map((item, idx) => (
-              <div key={idx} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className={`w-4 h-4 rounded-full ${item.status === 'completed' ? 'bg-[#c41e3a]' : 'bg-gray-600'}`} />
-                  {idx < timeline.length - 1 && <div className="w-0.5 h-12 bg-gray-700 mt-2" />}
+          {deal.timeline.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No timeline events yet</p>
+          ) : (
+            <div className="space-y-4">
+              {deal.timeline.map((item, idx) => (
+                <div key={item.id || idx} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-4 h-4 rounded-full bg-[#c41e3a]" />
+                    {idx < deal.timeline.length - 1 && <div className="w-0.5 h-12 bg-gray-700 mt-2" />}
+                  </div>
+                  <div className="pt-1">
+                    <p className="text-white font-semibold">{item.description}</p>
+                    <p className="text-gray-400 text-sm">{new Date(item.created_at).toLocaleDateString()}</p>
+                    {item.new_value && (
+                      <p className="text-gray-500 text-xs mt-1">
+                        {item.old_value ? `${item.old_value} → ` : ''}{item.new_value}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="pt-1">
-                  <p className="text-white font-semibold">{item.event}</p>
-                  <p className="text-gray-400 text-sm">{item.date.toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Rating Form - Shown if deal is completed */}
-        {deal.stage === DealStage.COMPLETED && (
-          <div className="bg-[#1a1f2b] rounded-lg p-6 border border-green-500/20">
-            <h3 className="text-lg font-semibold text-white mb-4">⭐ Deal Completion Rating</h3>
-            {!showRatingForm ? (
-              <button
-                onClick={() => setShowRatingForm(true)}
-                className="px-6 py-2 bg-[#d4a843] text-black rounded-lg hover:bg-yellow-400 transition-colors font-semibold"
-              >
-                Share Your Experience
-              </button>
-            ) : (
-              <RatingForm dealId={deal.id} />
-            )}
+        {/* Stage History */}
+        {deal.stage_history && deal.stage_history.length > 0 && (
+          <div className="bg-[#1a1f2b] rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Stage History</h3>
+            <div className="space-y-3">
+              {deal.stage_history.map((entry, idx) => (
+                <div key={idx} className="flex items-center gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0" />
+                  <div>
+                    <span className="text-gray-300">
+                      {entry.from ? `${stageLabels[entry.from] || entry.from} → ` : ''}
+                      {stageLabels[entry.to || entry.stage || ''] || entry.to || entry.stage}
+                    </span>
+                    <span className="text-gray-500 ml-2">{new Date(entry.timestamp).toLocaleDateString()}</span>
+                    {entry.note && <span className="text-gray-400 ml-2">— {entry.note}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
