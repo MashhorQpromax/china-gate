@@ -16,6 +16,9 @@ interface ProductCardProps {
     availableForPartnership: boolean;
     image?: string;
     description?: string;
+    supplierVerified?: boolean;
+    sampleAvailable?: boolean;
+    leadTime?: string;
   };
   isListView?: boolean;
 }
@@ -92,8 +95,19 @@ export default function ProductCard({ product, isListView = false }: ProductCard
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 text-sm">{product.supplier}</span>
+                  {product.supplierVerified && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 bg-opacity-20 text-green-400 rounded text-[10px] font-semibold">
+                      ✓ Verified
+                    </span>
+                  )}
                   <span className="text-gray-600">•</span>
                   <span className="text-gray-400 text-sm">{product.country}</span>
+                  {product.sampleAvailable && (
+                    <>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-blue-400 text-xs">Samples</span>
+                    </>
+                  )}
                 </div>
                 <span className="px-4 py-1 bg-[#c41e3a] bg-opacity-20 text-[#c41e3a] rounded text-sm hover:bg-opacity-30 transition-colors">
                   View
@@ -177,8 +191,23 @@ export default function ProductCard({ product, isListView = false }: ProductCard
 
           {/* Supplier */}
           <div className="pt-2 border-t border-[#242830]">
-            <p className="text-gray-400 text-xs">{product.supplier}</p>
-            <p className="text-gray-500 text-xs">{product.country}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-gray-400 text-xs">{product.supplier}</p>
+              {product.supplierVerified && (
+                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 bg-opacity-20 text-green-400 rounded text-[10px] font-semibold">
+                  ✓ Verified
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-gray-500 text-xs">{product.country}</p>
+              {product.sampleAvailable && (
+                <span className="text-blue-400 text-[10px]">Samples</span>
+              )}
+              {product.leadTime && (
+                <span className="text-gray-500 text-[10px]">{product.leadTime}</span>
+              )}
+            </div>
           </div>
 
           {/* Rating and Certifications */}

@@ -81,6 +81,8 @@ interface ProductDetail {
   production_capacity_unit: string;
   warranty_info: string;
   packaging_detail: string;
+  category_id: string;
+  categories: { id: string; name_en: string; name_ar: string; slug: string } | null;
   pricing_tiers: PricingTier[];
   variants: ProductVariant[];
   images: ProductImage[];
@@ -99,6 +101,20 @@ interface ProductDetail {
   } | null;
 }
 
+interface SimilarProduct {
+  id: string;
+  name_en: string;
+  base_price: number;
+  currency: string;
+  moq: number;
+  moq_unit: string;
+  main_image_url: string;
+  avg_rating: number;
+  review_count: number;
+  brand_name: string;
+  short_description_en: string;
+}
+
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const router = useRouter();
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -108,6 +124,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [inquiryQuantity, setInquiryQuantity] = useState('');
   const [error, setError] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
 
   // Check if user is logged in
   useEffect(() => {
@@ -131,6 +148,37 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       .catch(() => setError('Failed to load product'))
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  // Fetch similar products from same category
+  useEffect(() => {
+    if (!product?.category_id) return;
+    fetch(`/api/products?status=active&category_id=${product.category_id}&limit=4`)
+      .then(res => res.json())
+      .then(data => {
+        const filtered = (data.products || []).filter((p: SimilarProduct) => p.id !== params.id);
+        setSimilarProducts(filtered.slice(0, 4));
+      })
+      .catch(() => {});
+  }, [product?.category_id, params.id]);
+
+  // Track recently viewed in localStorage
+  useEffect(() => {
+    if (!product) return;
+    try {
+      const key = 'cg_recently_viewed';
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = stored.filter((item: { id: string }) => item.id !== product.id);
+      filtered.unshift({
+        id: product.id,
+        name_en: product.name_en,
+        base_price: product.base_price,
+        currency: product.currency,
+        main_image_url: product.main_image_url,
+        brand_name: product.brand_name,
+      });
+      localStorage.setItem(key, JSON.stringify(filtered.slice(0, 10)));
+    } catch {}
+  }, [product]);
 
   if (loading) {
     return (
@@ -542,6 +590,44 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
         )}
       </div>
+
+      {/* Similar Products */}
+      {similarProducts.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-white mb-4">Similar Products</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {similarProducts.map((sp) => {
+              const colors = ['#8B0000', '#C41E3A', '#D4A843', '#1a1d23', '#242830'];
+              const colorIndex = sp.id.charCodeAt(0) % colors.length;
+              return (
+                <Link key={sp.id} href={`/marketplace/products/${sp.id}`}
+                  className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden hover:border-[#c41e3a] transition-colors group"
+                >
+                  <div className="aspect-[4/3] relative overflow-hidden">
+                    {sp.main_image_url ? (
+                      <img src={sp.main_image_url} alt={sp.name_en}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold px-2 text-center"
+                        style={{ background: `linear-gradient(135deg, ${colors[colorIndex]}, ${colors[(colorIndex + 1) % colors.length]})` }}>
+                        {sp.name_en.slice(0, 30)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-white text-sm font-medium line-clamp-2 mb-1">{sp.name_en}</h3>
+                    <p className="text-[#d4a843] font-bold text-sm">${sp.base_price?.toLocaleString()} <span className="text-gray-500 font-normal text-xs">{sp.currency}</span></p>
+                    <p className="text-gray-500 text-xs mt-1">MOQ: {sp.moq} {sp.moq_unit}</p>
+                    {sp.avg_rating > 0 && (
+                      <p className="text-yellow-400 text-xs mt-1">{'★'.repeat(Math.round(sp.avg_rating))} <span className="text-gray-500">({sp.review_count})</span></p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Inquiry Modal */}
       {showInquiryModal && (

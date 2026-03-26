@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sort_order') || 'desc';
     const featured = searchParams.get('featured');
     const originCountry = searchParams.get('origin_country');
+    const sampleAvailable = searchParams.get('sample_available');
+    const leadTimeMax = searchParams.get('lead_time_max');
+    const certification = searchParams.get('certification');
 
     let query = supabase
       .from('products')
@@ -70,6 +73,18 @@ export async function GET(request: NextRequest) {
       query = query.eq('origin_country', originCountry);
     }
 
+    if (sampleAvailable === 'true') {
+      query = query.eq('sample_available', true);
+    }
+
+    if (leadTimeMax) {
+      query = query.lte('lead_time_max', parseInt(leadTimeMax));
+    }
+
+    if (certification) {
+      query = query.contains('certifications', [certification]);
+    }
+
     // Sorting
     const ascending = sortOrder === 'asc';
     switch (sortBy) {
@@ -99,8 +114,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Fetch supplier verification data for all returned products
+    let productsWithVerification = data || [];
+    if (productsWithVerification.length > 0) {
+      const supplierIds = [...new Set(productsWithVerification.map((p: Record<string, unknown>) => p.supplier_id))];
+      const { data: verifications } = await supabase
+        .from('supplier_verifications')
+        .select('supplier_id, verification_level')
+        .in('supplier_id', supplierIds);
+
+      if (verifications && verifications.length > 0) {
+        const verificationMap = new Map(
+          verifications.map((v: { supplier_id: string; verification_level: string }) => [v.supplier_id, v.verification_level])
+        );
+        productsWithVerification = productsWithVerification.map((p: Record<string, unknown>) => ({
+          ...p,
+          supplier_verified: verificationMap.get(p.supplier_id as string) !== 'unverified' && verificationMap.has(p.supplier_id as string),
+        }));
+      }
+    }
+
     return NextResponse.json({
-      products: data,
+      products: productsWithVerification,
       pagination: {
         page,
         limit,

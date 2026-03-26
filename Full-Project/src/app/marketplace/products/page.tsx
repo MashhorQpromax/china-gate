@@ -35,6 +35,11 @@ interface Product {
   short_description_en: string;
   categories?: { name_en: string; name_ar: string; slug: string };
   supplier_id: string;
+  supplier_verified?: boolean;
+  sample_available?: boolean;
+  lead_time_min?: number;
+  lead_time_max?: number;
+  lead_time_unit?: string;
 }
 
 type SortOption = 'newest' | 'price_low' | 'price_high' | 'rating' | 'popular';
@@ -54,8 +59,20 @@ export default function ProductsMarketplacePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [sampleFilter, setSampleFilter] = useState(false);
+  const [leadTimeFilter, setLeadTimeFilter] = useState('');
+  const [certFilter, setCertFilter] = useState('');
+  const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name_en: string; base_price: number; currency: string; main_image_url: string; brand_name: string }[]>([]);
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
+
+  // Load recently viewed products from localStorage
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cg_recently_viewed') || '[]');
+      setRecentlyViewed(stored.slice(0, 6));
+    } catch {}
+  }, []);
 
   // Check if user is logged in
   useEffect(() => {
@@ -87,6 +104,9 @@ export default function ProductsMarketplacePage() {
       if (searchTerm) params.set('search', searchTerm);
       if (minPrice) params.set('min_price', minPrice);
       if (maxPrice) params.set('max_price', maxPrice);
+      if (sampleFilter) params.set('sample_available', 'true');
+      if (leadTimeFilter) params.set('lead_time_max', leadTimeFilter);
+      if (certFilter) params.set('certification', certFilter);
 
       // Map sort options to API params
       switch (sortBy) {
@@ -121,7 +141,7 @@ export default function ProductsMarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy, minPrice, maxPrice]);
+  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy, minPrice, maxPrice, sampleFilter, leadTimeFilter, certFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -289,6 +309,64 @@ export default function ProductsMarketplacePage() {
               )}
             </div>
 
+            {/* Quick Filters */}
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-white">Quick Filters</h3>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sampleFilter}
+                  onChange={(e) => {
+                    setSampleFilter(e.target.checked);
+                    setCurrentPage(1);
+                  }}
+                  className="w-4 h-4 accent-[#c41e3a] rounded"
+                />
+                <span className="text-gray-300 text-sm">Samples Available</span>
+              </label>
+            </div>
+
+            {/* Lead Time Filter */}
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-white">Max Lead Time</h3>
+              <select
+                value={leadTimeFilter}
+                onChange={(e) => {
+                  setLeadTimeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none"
+              >
+                <option value="">Any</option>
+                <option value="7">7 days or less</option>
+                <option value="14">14 days or less</option>
+                <option value="30">30 days or less</option>
+                <option value="60">60 days or less</option>
+              </select>
+            </div>
+
+            {/* Certification Filter */}
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-white">Certification</h3>
+              <select
+                value={certFilter}
+                onChange={(e) => {
+                  setCertFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none"
+              >
+                <option value="">Any</option>
+                <option value="ISO 9001">ISO 9001</option>
+                <option value="CE">CE</option>
+                <option value="FDA">FDA</option>
+                <option value="RoHS">RoHS</option>
+                <option value="SGS">SGS</option>
+                <option value="BSCI">BSCI</option>
+                <option value="UL">UL</option>
+              </select>
+            </div>
+
             {/* Sort (mobile-friendly duplicate) */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3 lg:hidden">
               <h3 className="font-semibold text-white">Sort By</h3>
@@ -317,13 +395,16 @@ export default function ProductsMarketplacePage() {
                 <p className="text-gray-400">
                   {loading ? 'Loading...' : `Showing ${totalProducts} product${totalProducts !== 1 ? 's' : ''}`}
                 </p>
-                {(selectedCategory || searchTerm || minPrice || maxPrice) && (
+                {(selectedCategory || searchTerm || minPrice || maxPrice || sampleFilter || leadTimeFilter || certFilter) && (
                   <button
                     onClick={() => {
                       setSelectedCategory('');
                       setSearchTerm('');
                       setMinPrice('');
                       setMaxPrice('');
+                      setSampleFilter(false);
+                      setLeadTimeFilter('');
+                      setCertFilter('');
                       setCurrentPage(1);
                     }}
                     className="text-xs text-[#c41e3a] hover:text-red-400 transition-colors"
@@ -386,6 +467,13 @@ export default function ProductsMarketplacePage() {
                       availableForPartnership: product.featured || false,
                       image: product.main_image_url,
                       description: product.short_description_en || '',
+                      supplierVerified: product.supplier_verified || false,
+                      sampleAvailable: product.sample_available || false,
+                      leadTime: product.lead_time_min && product.lead_time_max
+                        ? `${product.lead_time_min}-${product.lead_time_max} ${product.lead_time_unit || 'days'}`
+                        : product.lead_time_min
+                          ? `${product.lead_time_min}+ ${product.lead_time_unit || 'days'}`
+                          : '',
                     }}
                     isListView={viewMode === 'list'}
                   />
@@ -433,6 +521,39 @@ export default function ProductsMarketplacePage() {
           </div>
         </div>
       </div>
+
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-white mb-3">Recently Viewed</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {recentlyViewed.map((item) => {
+              const colors = ['#8B0000', '#C41E3A', '#D4A843', '#1a1d23', '#242830'];
+              const ci = item.id.charCodeAt(0) % colors.length;
+              return (
+                <Link key={item.id} href={`/marketplace/products/${item.id}`}
+                  className="flex-shrink-0 w-40 bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden hover:border-[#c41e3a] transition-colors"
+                >
+                  <div className="aspect-square relative overflow-hidden">
+                    {item.main_image_url ? (
+                      <img src={item.main_image_url} alt={item.name_en} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold px-2 text-center"
+                        style={{ background: `linear-gradient(135deg, ${colors[ci]}, ${colors[(ci + 1) % colors.length]})` }}>
+                        {item.name_en.slice(0, 20)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2">
+                    <p className="text-white text-xs font-medium line-clamp-2">{item.name_en}</p>
+                    <p className="text-[#d4a843] text-xs font-bold mt-1">${item.base_price?.toLocaleString()}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
