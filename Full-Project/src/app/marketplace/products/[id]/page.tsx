@@ -547,16 +547,31 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => !isLoggedIn && router.push('/login?redirect=/marketplace/products/' + product.id)}
+                  onClick={async () => {
+                    if (!isLoggedIn) {
+                      router.push('/login?redirect=/marketplace/products/' + product.id);
+                      return;
+                    }
+                    try {
+                      const res = await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          recipient_id: product.supplier_id,
+                          content: `Hi, I'm interested in your product: ${product.name_en}`,
+                        }),
+                      });
+                      if (res.ok) {
+                        router.push('/messages');
+                      }
+                    } catch {
+                      router.push('/messages');
+                    }
+                  }}
                   className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
                 >
-                  Contact
-                </button>
-                <button
-                  onClick={() => !isLoggedIn && router.push('/login?redirect=/marketplace/products/' + product.id)}
-                  className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors"
-                >
-                  View Profile
+                  {isLoggedIn ? 'Contact Supplier' : 'Login to Contact'}
                 </button>
               </div>
             </div>

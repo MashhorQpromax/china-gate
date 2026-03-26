@@ -35,21 +35,6 @@ interface ApiConversation {
   participants: Participant[];
 }
 
-function getAuthHeaders(): Record<string, string> {
-  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
-  return {};
-}
-
-function getCurrentUserId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
-    return profile.id || null;
-  } catch {
-    return null;
-  }
-}
-
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -63,8 +48,15 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Get current user ID from API
   useEffect(() => {
-    setCurrentUserId(getCurrentUserId());
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        const id = data.user?.id || data.data?.id || null;
+        setCurrentUserId(id);
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch conversations list
@@ -248,8 +240,8 @@ export default function MessagesPage() {
 
   return (
     <DashboardLayout
-      user={{ name: 'User', initials: 'U' }}
-      isAuthenticated={true}
+      user={currentUserId ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }}
+      isAuthenticated={!!currentUserId}
     >
       <div className="space-y-6">
         <div>
