@@ -768,7 +768,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     productId: product.id,
                     name: product.name_en,
                     image: product.main_image_url || (product.images?.[0]?.image_url),
-                    price: product.price,
+                    price: product.base_price,
                     currency: product.currency || 'USD',
                     quantity: qty,
                     moq: product.moq,

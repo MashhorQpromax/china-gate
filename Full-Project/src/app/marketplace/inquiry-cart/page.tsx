@@ -76,7 +76,8 @@ export default function InquiryCartPage() {
   });
 
   const formatPrice = (price: number, currency: string) => {
-    return `${currency || 'USD'} ${price?.toLocaleString() || '0'}`;
+    const safePrice = typeof price === 'number' && !isNaN(price) ? price : 0;
+    return `${currency || 'USD'} ${safePrice.toLocaleString()}`;
   };
 
   const handleSendInquiries = async () => {
