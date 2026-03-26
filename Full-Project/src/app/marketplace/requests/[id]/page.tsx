@@ -51,6 +51,7 @@ interface RFQDetail {
   quotations: {
     id: string;
     reference_number: string;
+    supplier_id: string;
     unit_price: number;
     quantity: number;
     total_price: number;
@@ -75,6 +76,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const router = useRouter();
   const [showQuotationForm, setShowQuotationForm] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [acceptingQuote, setAcceptingQuote] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoggedIn(document.cookie.includes('access_token='));
@@ -93,6 +95,51 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
       .catch(() => setError('Failed to load request'))
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  // Accept quotation and create deal
+  const handleAcceptQuotation = async (quotationId: string) => {
+    if (!rfq || !isLoggedIn) return;
+    setAcceptingQuote(quotationId);
+
+    const quote = rfq.quotations.find(q => q.id === quotationId);
+    if (!quote) return;
+
+    try {
+      const meRes = await fetch('/api/auth/me', { credentials: 'include' });
+      const meData = await meRes.json();
+      const buyerId = meData.user?.id || meData.data?.id;
+
+      const res = await fetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          quotationId: quote.id,
+          buyerId,
+          supplierId: quote.supplier_id,
+          productName: rfq.product_name,
+          quantity: quote.quantity,
+          unitPrice: quote.unit_price,
+          totalValue: quote.total_price,
+          currency: quote.currency || rfq.currency,
+          incoterm: quote.incoterm,
+          paymentTerms: quote.payment_terms,
+          destinationPort: rfq.destination_port,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.deal) {
+          router.push(`/deals/${data.deal.id}`);
+        }
+      }
+    } catch {
+      // Error handling
+    } finally {
+      setAcceptingQuote(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -294,7 +341,11 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
               <h2 className="text-lg font-bold text-white">
                 Received Quotations ({rfq.quotations.length})
               </h2>
-              <ComparisonTable quotations={comparisonQuotations} />
+              <ComparisonTable
+                quotations={comparisonQuotations}
+                onAccept={isLoggedIn ? handleAcceptQuotation : undefined}
+                accepting={acceptingQuote}
+              />
             </div>
           </div>
 

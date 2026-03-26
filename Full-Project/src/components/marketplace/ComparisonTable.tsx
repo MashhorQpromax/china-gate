@@ -19,9 +19,11 @@ interface Quotation {
 
 interface ComparisonTableProps {
   quotations: Quotation[];
+  onAccept?: (quotationId: string) => void;
+  accepting?: string | null;
 }
 
-export default function ComparisonTable({ quotations }: ComparisonTableProps) {
+export default function ComparisonTable({ quotations, onAccept, accepting }: ComparisonTableProps) {
   const [selectedQuotations, setSelectedQuotations] = useState<string[]>([]);
 
   if (quotations.length === 0) {
@@ -109,19 +111,15 @@ export default function ComparisonTable({ quotations }: ComparisonTableProps) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      {!isExpired(quote.validity) && (
-                        <>
-                          <button className="px-3 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded text-xs hover:bg-opacity-30 transition-colors">
-                            Accept
-                          </button>
-                          <button className="px-3 py-1 bg-[#d4a843] bg-opacity-20 text-[#d4a843] rounded text-xs hover:bg-opacity-30 transition-colors">
-                            Negotiate
-                          </button>
-                        </>
+                      {!isExpired(quote.validity) && onAccept && (
+                        <button
+                          onClick={() => onAccept(quote.id)}
+                          disabled={accepting === quote.id}
+                          className="px-3 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded text-xs hover:bg-opacity-30 transition-colors disabled:opacity-50"
+                        >
+                          {accepting === quote.id ? '...' : 'Accept'}
+                        </button>
                       )}
-                      <button className="px-3 py-1 bg-red-600 bg-opacity-20 text-red-400 rounded text-xs hover:bg-opacity-30 transition-colors">
-                        Reject
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -200,21 +198,17 @@ export default function ComparisonTable({ quotations }: ComparisonTableProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 pt-3 border-t border-[#242830]">
-              {!isExpired(quote.validity) && (
-                <>
-                  <button className="flex-1 px-3 py-2 bg-green-600 bg-opacity-20 text-green-400 rounded text-sm hover:bg-opacity-30 transition-colors font-semibold">
-                    Accept
-                  </button>
-                  <button className="flex-1 px-3 py-2 bg-[#d4a843] bg-opacity-20 text-[#d4a843] rounded text-sm hover:bg-opacity-30 transition-colors font-semibold">
-                    Negotiate
-                  </button>
-                </>
-              )}
-              <button className="flex-1 px-3 py-2 bg-red-600 bg-opacity-20 text-red-400 rounded text-sm hover:bg-opacity-30 transition-colors font-semibold">
-                Reject
-              </button>
-            </div>
+            {!isExpired(quote.validity) && onAccept && (
+              <div className="flex gap-2 pt-3 border-t border-[#242830]">
+                <button
+                  onClick={() => onAccept(quote.id)}
+                  disabled={accepting === quote.id}
+                  className="flex-1 px-3 py-2 bg-green-600 bg-opacity-20 text-green-400 rounded text-sm hover:bg-opacity-30 transition-colors font-semibold disabled:opacity-50"
+                >
+                  {accepting === quote.id ? 'Creating Deal...' : 'Accept & Create Deal'}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
