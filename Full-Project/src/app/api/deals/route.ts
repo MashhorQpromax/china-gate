@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('deals')
-      .select('*, profiles!buyer_id(full_name_en, company_name), profiles!supplier_id(full_name_en, company_name)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -49,16 +49,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Flatten profile joins into buyer_name / supplier_name
-    const flattenedData = (data || []).map((deal: any) => {
-      const buyerProfile = deal['profiles!buyer_id'] || deal.profiles || {};
-      const supplierProfile = deal['profiles!supplier_id'] || {};
-      return {
-        ...deal,
-        buyer_name: buyerProfile.full_name_en || buyerProfile.company_name || 'Unknown',
-        supplier_name: supplierProfile.full_name_en || supplierProfile.company_name || 'Unknown',
-      };
-    });
+    // Fetch profiles for all buyer/supplier IDs
+    const allUserIds = [
+      ...new Set((data || []).flatMap((d: any) => [d.buyer_id, d.supplier_id].filter(Boolean))),
+    ];
+
+    const profileMap: Record<string, { full_name_en: string; company_name: string }> = {};
+    if (allUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name_en, company_name')
+        .in('id', allUserIds);
+      if (profiles) {
+        for (const p of profiles) {
+          profileMap[p.id] = p;
+        }
+      }
+    }
+
+    // Attach buyer_name / supplier_name
+    const flattenedData = (data || []).map((deal: any) => ({
+      ...deal,
+      buyer_name: profileMap[deal.buyer_id]?.full_name_en || profileMap[deal.buyer_id]?.company_name || 'Unknown',
+      supplier_name: profileMap[deal.supplier_id]?.full_name_en || profileMap[deal.supplier_id]?.company_name || 'Unknown',
+    }));
 
     return NextResponse.json({
       success: true,
