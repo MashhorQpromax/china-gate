@@ -239,7 +239,12 @@ export default function ProductsMarketplacePage() {
                     }}
                     className="w-4 h-4 accent-[#c41e3a]"
                   />
-                  <span className="text-gray-300">{cat.name_en}</span>
+                  <span className="text-gray-300">
+                    {cat.name_en}
+                    {cat.product_count > 0 && (
+                      <span className="text-gray-500 ml-1">({cat.product_count})</span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>
