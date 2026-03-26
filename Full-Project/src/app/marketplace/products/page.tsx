@@ -67,6 +67,16 @@ export default function ProductsMarketplacePage() {
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const [filtersReady, setFiltersReady] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  const activeFilterCount = [
+    selectedCategory,
+    minPrice,
+    maxPrice,
+    sampleFilter,
+    leadTimeFilter,
+    certFilter,
+  ].filter(Boolean).length;
 
   // Read URL params on mount (search, category from homepage)
   useEffect(() => {
@@ -229,9 +239,32 @@ export default function ProductsMarketplacePage() {
           )}
         </div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden">
+          <button
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-[#1a1d23] border border-[#242830] rounded-lg text-white"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="px-2 py-0.5 bg-[#c41e3a] text-white rounded-full text-xs font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <svg className={`w-5 h-5 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
-          <div className="space-y-6">
+          <div className={`space-y-6 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
             {/* View Mode Toggle */}
             <div className="flex gap-2 bg-[#1a1d23] border border-[#242830] rounded-lg p-2">
               <button
@@ -390,7 +423,7 @@ export default function ProductsMarketplacePage() {
               </select>
             </div>
 
-            {/* Sort (mobile-friendly duplicate) */}
+            {/* Sort (mobile) */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3 lg:hidden">
               <h3 className="font-semibold text-white">Sort By</h3>
               <select
@@ -408,6 +441,14 @@ export default function ProductsMarketplacePage() {
                 <option value="popular">Most Popular</option>
               </select>
             </div>
+
+            {/* Apply & Close (mobile) */}
+            <button
+              onClick={() => setShowMobileFilters(false)}
+              className="w-full py-3 bg-[#c41e3a] text-white rounded-lg font-semibold lg:hidden"
+            >
+              Apply Filters
+            </button>
           </div>
 
           {/* Products */}
@@ -496,8 +537,12 @@ export default function ProductsMarketplacePage() {
                       priceRange: product.base_price
                         ? `$${product.base_price.toLocaleString()}`
                         : 'Contact for price',
+                      basePrice: product.base_price,
+                      currency: product.currency || 'USD',
+                      unit: product.moq_unit || 'pcs',
                       moq: product.moq,
                       supplier: product.brand_name || 'Verified Supplier',
+                      supplierId: product.supplier_id,
                       country: product.origin_country || 'China',
                       rating: product.avg_rating || 0,
                       certifications: product.certifications || [],
