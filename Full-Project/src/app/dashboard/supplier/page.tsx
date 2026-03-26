@@ -18,8 +18,10 @@ interface RFQ {
   id: string;
   title: string;
   quantity: number;
-  budget: number;
-  deadline: string;
+  target_price: number | null;
+  max_budget: number | null;
+  required_delivery_date: string | null;
+  currency: string;
 }
 
 interface Quotation {
@@ -387,8 +389,8 @@ export default function SupplierDashboardPage() {
                           </p>
                           <div className="flex gap-4 text-sm text-gray-400">
                             <span>Qty: {rfq.quantity.toLocaleString()}</span>
-                            <span>Budget: {formatCurrency(rfq.budget)}</span>
-                            <span>Due: {formatRelativeDate(rfq.deadline)}</span>
+                            <span>Budget: {rfq.max_budget ? formatCurrency(rfq.max_budget) : rfq.target_price ? formatCurrency(rfq.target_price) : 'N/A'}</span>
+                            <span>Due: {rfq.required_delivery_date ? new Date(rfq.required_delivery_date).toLocaleDateString() : 'No deadline'}</span>
                           </div>
                         </div>
                         <button className="ml-4 px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm whitespace-nowrap">

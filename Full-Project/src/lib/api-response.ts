@@ -85,8 +85,16 @@ export function apiConflict(message: string) {
   return apiError(message, 'CONFLICT', 409);
 }
 
-export function apiServerError(message = 'Internal server error') {
-  return apiError(message, 'SERVER_ERROR', 500);
+export function apiServerError(message = 'Internal server error', status = 500) {
+  const codeMap: Record<number, string> = {
+    400: 'BAD_REQUEST',
+    401: 'UNAUTHORIZED',
+    403: 'FORBIDDEN',
+    404: 'NOT_FOUND',
+    409: 'CONFLICT',
+    500: 'SERVER_ERROR',
+  };
+  return apiError(message, codeMap[status] || 'SERVER_ERROR', status);
 }
 
 // Helper to get user info from middleware headers
@@ -107,18 +115,26 @@ export function getRequestUser(request: Request) {
   };
 }
 
-// Parse pagination params
-export function getPaginationParams(url: URL) {
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '20')));
+// Helper to extract searchParams from URL or Request
+function getSearchParams(input: URL | Request): URLSearchParams {
+  if (input instanceof URL) return input.searchParams;
+  return new URL(input.url).searchParams;
+}
+
+// Parse pagination params (accepts URL or NextRequest)
+export function getPaginationParams(input: URL | Request) {
+  const searchParams = getSearchParams(input);
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')));
   const offset = (page - 1) * limit;
   return { page, limit, offset };
 }
 
-// Parse sort params
-export function getSortParams(url: URL, allowedFields: string[]) {
-  const sortBy = url.searchParams.get('sort_by') || 'created_at';
-  const sortOrder = url.searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
+// Parse sort params (accepts URL or NextRequest)
+export function getSortParams(input: URL | Request, allowedFields: string[], _defaultField?: string) {
+  const searchParams = getSearchParams(input);
+  const sortBy = searchParams.get('sort_by') || 'created_at';
+  const sortOrder = searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
 
   // Only allow whitelisted sort fields
   const safeSortBy = allowedFields.includes(sortBy) ? sortBy : 'created_at';

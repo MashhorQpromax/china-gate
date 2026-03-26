@@ -28,13 +28,14 @@ export async function GET(request: NextRequest) {
 
     // If userId is available, filter by role
     if (userId) {
-      if (userRole === 'buyer') {
+      if (userRole === 'gulf_buyer') {
         query = query.eq('buyer_id', userId);
-      } else if (userRole === 'supplier') {
+      } else if (userRole === 'chinese_supplier') {
         query = query.eq('supplier_id', userId);
-      } else {
+      } else if (userRole !== 'admin') {
         query = query.or(`buyer_id.eq.${userId},supplier_id.eq.${userId}`);
       }
+      // Admins see all deals (no filter)
     }
     // If no userId, return all deals (admin view)
 
@@ -48,9 +49,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // Flatten profile joins into buyer_name / supplier_name
+    const flattenedData = (data || []).map((deal: any) => {
+      const buyerProfile = deal['profiles!buyer_id'] || deal.profiles || {};
+      const supplierProfile = deal['profiles!supplier_id'] || {};
+      return {
+        ...deal,
+        buyer_name: buyerProfile.full_name_en || buyerProfile.company_name || 'Unknown',
+        supplier_name: supplierProfile.full_name_en || supplierProfile.company_name || 'Unknown',
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: data,
+      data: flattenedData,
       meta: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
     });
   } catch (error) {
