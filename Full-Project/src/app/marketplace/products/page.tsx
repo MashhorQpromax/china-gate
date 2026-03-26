@@ -66,6 +66,15 @@ export default function ProductsMarketplacePage() {
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
 
+  // Read URL params on mount (search, category from homepage)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const search = urlParams.get('search');
+    const category = urlParams.get('category');
+    if (search) setSearchTerm(search);
+    if (category) setSelectedCategory(category);
+  }, []);
+
   // Load recently viewed products from localStorage
   useEffect(() => {
     try {

@@ -317,7 +317,7 @@ export default function MarketplacePage() {
               {recentRfqs.map(rfq => (
                 <Link
                   key={rfq.id}
-                  href={isLoggedIn ? `/marketplace/requests/${rfq.id}` : `/login?redirect=/marketplace/requests/${rfq.id}`}
+                  href={`/marketplace/requests/${rfq.id}`}
                   className="block bg-[#1a1d23] border border-[#242830] rounded-lg p-4 hover:border-[#d4a843] transition-colors"
                 >
                   <div className="flex items-center justify-between">

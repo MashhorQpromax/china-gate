@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import QuotationForm from '@/components/marketplace/QuotationForm';
 import ComparisonTable from '@/components/marketplace/ComparisonTable';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface RequestDetailPageProps {
   params: {
@@ -71,7 +72,13 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const [rfq, setRfq] = useState<RFQDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const router = useRouter();
   const [showQuotationForm, setShowQuotationForm] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(document.cookie.includes('access_token='));
+  }, []);
 
   useEffect(() => {
     fetch(`/api/rfq/${params.id}`)
@@ -89,7 +96,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout user={{ name: 'Supplier', initials: 'S' }} isAuthenticated={true}>
+      <DashboardLayout user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }} isAuthenticated={isLoggedIn}>
         <div className="space-y-8 animate-pulse">
           <div className="h-6 bg-[#242830] rounded w-48" />
           <div className="h-10 bg-[#242830] rounded w-3/4" />
@@ -112,7 +119,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
 
   if (error || !rfq) {
     return (
-      <DashboardLayout user={{ name: 'Supplier', initials: 'S' }} isAuthenticated={true}>
+      <DashboardLayout user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }} isAuthenticated={isLoggedIn}>
         <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-12 text-center">
           <p className="text-gray-400 text-lg mb-2">{error || 'Request not found'}</p>
           <Link href="/marketplace/requests" className="text-[#d4a843] hover:underline">
@@ -156,8 +163,8 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
 
   return (
     <DashboardLayout
-      user={{ name: 'Supplier', initials: 'S' }}
-      isAuthenticated={true}
+      user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }}
+      isAuthenticated={isLoggedIn}
     >
       <div className="space-y-8">
         {/* Breadcrumb */}
@@ -190,10 +197,10 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
           </div>
           {['open', 'receiving_quotes'].includes(rfq.status) && (
             <button
-              onClick={() => setShowQuotationForm(true)}
+              onClick={() => isLoggedIn ? setShowQuotationForm(true) : router.push(`/login?redirect=/marketplace/requests/${rfq.id}`)}
               className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold whitespace-nowrap"
             >
-              Submit Quotation
+              {isLoggedIn ? 'Submit Quotation' : 'Login to Quote'}
             </button>
           )}
         </div>
@@ -355,10 +362,10 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
             {/* Action Button */}
             {['open', 'receiving_quotes'].includes(rfq.status) && (
               <button
-                onClick={() => setShowQuotationForm(true)}
+                onClick={() => isLoggedIn ? setShowQuotationForm(true) : router.push(`/login?redirect=/marketplace/requests/${rfq.id}`)}
                 className="w-full px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
               >
-                Submit Quotation
+                {isLoggedIn ? 'Submit Quotation' : 'Login to Quote'}
               </button>
             )}
           </div>

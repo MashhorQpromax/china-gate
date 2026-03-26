@@ -43,6 +43,11 @@ export default function PurchaseRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRfqs, setTotalRfqs] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(document.cookie.includes('access_token='));
+  }, []);
 
   const itemsPerPage = 10;
 
@@ -151,8 +156,8 @@ export default function PurchaseRequestsPage() {
 
   return (
     <DashboardLayout
-      user={{ name: 'Supplier', initials: 'S' }}
-      isAuthenticated={true}
+      user={isLoggedIn ? { name: 'User', initials: 'U' } : { name: 'Guest', initials: 'G' }}
+      isAuthenticated={isLoggedIn}
     >
       <div className="space-y-8">
         {/* Header */}
@@ -166,7 +171,7 @@ export default function PurchaseRequestsPage() {
             </p>
           </div>
           <Link
-            href="/marketplace/requests/new"
+            href={isLoggedIn ? '/marketplace/requests/new' : '/login?redirect=/marketplace/requests/new'}
             className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold hidden sm:block"
           >
             + Post New Request

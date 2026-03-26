@@ -23,6 +23,7 @@ const PUBLIC_ROUTES = [
   '/marketplace',
   '/api/products',
   '/api/categories',
+  '/api/rfq',
 ];
 
 // Routes accessible without complete profile (browse only)
