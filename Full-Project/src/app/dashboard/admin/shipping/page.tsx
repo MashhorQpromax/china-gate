@@ -13,7 +13,7 @@ interface ShippingCompany {
   status: 'active' | 'inactive';
 }
 
-const demoCompanies: ShippingCompany[] = [
+const shippingCompanies: ShippingCompany[] = [
   {
     id: 'ship-001',
     name: 'DHL Express',
@@ -62,7 +62,7 @@ const demoCompanies: ShippingCompany[] = [
 ];
 
 export default function AdminShippingPage() {
-  const [companies, setCompanies] = useState(demoCompanies);
+  const [companies, setCompanies] = useState(shippingCompanies);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<Partial<ShippingCompany>>({});
   const [showAddForm, setShowAddForm] = useState(false);

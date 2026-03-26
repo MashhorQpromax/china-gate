@@ -12,7 +12,7 @@ interface StatementTransaction {
   reference: string;
 }
 
-const DEMO_STATEMENT_DATA: StatementTransaction[] = [
+const STATEMENT_DATA: StatementTransaction[] = [
   {
     date: new Date('2024-03-01'),
     description: 'Opening Balance',
@@ -70,14 +70,14 @@ export default function BankStatementPage() {
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
 
   const openingBalance = 1250000;
-  const totalDebits = DEMO_STATEMENT_DATA.filter((t) => t.debit).reduce((sum, t) => sum + (t.debit || 0), 0);
-  const totalCredits = DEMO_STATEMENT_DATA.filter((t) => t.credit && t.description !== 'Opening Balance').reduce(
+  const totalDebits = STATEMENT_DATA.filter((t) => t.debit).reduce((sum, t) => sum + (t.debit || 0), 0);
+  const totalCredits = STATEMENT_DATA.filter((t) => t.credit && t.description !== 'Opening Balance').reduce(
     (sum, t) => sum + (t.credit || 0),
     0
   );
-  const closingBalance = DEMO_STATEMENT_DATA[DEMO_STATEMENT_DATA.length - 1]?.balance || 0;
+  const closingBalance = STATEMENT_DATA[STATEMENT_DATA.length - 1]?.balance || 0;
 
-  const filteredTransactions = DEMO_STATEMENT_DATA.filter((t) => {
+  const filteredTransactions = STATEMENT_DATA.filter((t) => {
     const dateMatch = t.date >= startDate && t.date <= endDate;
     if (filterType === 'ALL') return dateMatch;
     if (filterType === 'DEBIT') return dateMatch && t.debit;
