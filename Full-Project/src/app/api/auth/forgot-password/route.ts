@@ -18,21 +18,26 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Send password reset email (Supabase handles it)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://china-gate.vercel.app';
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://china-gate.vercel.app/reset-password',
+      redirectTo: `${siteUrl}/reset-password`,
     });
 
     // Log the attempt (best effort)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    await supabase.from('security_audit_log').insert({
-      action: 'password_reset_requested',
-      action_type: 'auth',
-      description: `Password reset requested for ${email}`,
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || '',
-      metadata: { email },
-      risk_level: 'medium',
-    }).catch(() => {});
+    try {
+      await supabase.from('security_audit_log').insert({
+        action: 'password_reset_requested',
+        action_type: 'auth',
+        description: `Password reset requested for ${email}`,
+        ip_address: ip,
+        user_agent: request.headers.get('user-agent') || '',
+        metadata: { email },
+        risk_level: 'medium',
+      });
+    } catch {
+      // Ignore audit log errors
+    }
 
     // Always return success to prevent email enumeration
     return NextResponse.json({

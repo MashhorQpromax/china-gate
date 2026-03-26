@@ -18,17 +18,25 @@ export async function POST(request: NextRequest) {
 
       if (user) {
         // Log logout in security audit
-        await supabase.from('security_audit_log').insert({
-          user_id: user.id,
-          action: 'logout',
-          action_type: 'auth',
-          description: 'User logged out',
-          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
-          risk_level: 'low',
-        }).catch(() => {});
+        try {
+          await supabase.from('security_audit_log').insert({
+            user_id: user.id,
+            action: 'logout',
+            action_type: 'auth',
+            description: 'User logged out',
+            ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0',
+            risk_level: 'low',
+          });
+        } catch {
+          // Ignore audit log errors
+        }
       }
 
-      await supabase.auth.admin.signOut(token).catch(() => {});
+      try {
+        await supabase.auth.admin.signOut(token);
+      } catch {
+        // Ignore sign out errors
+      }
     }
 
     // Clear the cookies

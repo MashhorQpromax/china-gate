@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
           commercial_reg: commercialReg,
           sector: sector || null,
           email: email,
+          profile_completed: !!(phone && companyName),
         })
         .eq('id', authData.user.id);
 

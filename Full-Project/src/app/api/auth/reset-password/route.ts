@@ -40,15 +40,19 @@ export async function POST(request: NextRequest) {
     // Log password change (best effort)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    await supabaseAdmin.from('security_audit_log').insert({
-      user_id: data.user?.id,
-      action: 'password_reset_completed',
-      action_type: 'auth',
-      description: 'Password was reset successfully',
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || '',
-      risk_level: 'high',
-    }).catch(() => {});
+    try {
+      await supabaseAdmin.from('security_audit_log').insert({
+        user_id: data.user?.id,
+        action: 'password_reset_completed',
+        action_type: 'auth',
+        description: 'Password was reset successfully',
+        ip_address: ip,
+        user_agent: request.headers.get('user-agent') || '',
+        risk_level: 'high',
+      });
+    } catch {
+      // Ignore audit log errors
+    }
 
     return NextResponse.json({
       message: 'Password has been reset successfully',

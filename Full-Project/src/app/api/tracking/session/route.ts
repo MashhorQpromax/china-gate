@@ -104,12 +104,14 @@ export async function POST(request: NextRequest) {
           });
 
         // Update login_count on existing device
-        await supabase.rpc('increment_device_login', {
-          p_user_id: userId,
-          p_fingerprint: fingerprint,
-        }).catch(() => {
+        try {
+          await supabase.rpc('increment_device_login', {
+            p_user_id: userId,
+            p_fingerprint: fingerprint,
+          });
+        } catch {
           // RPC might not exist yet, ignore
-        });
+        }
       }
 
       // Update profile online status
