@@ -63,9 +63,7 @@ export default function SupplierProductsPage() {
       limit: '10',
       supplier_id: 'me',
     });
-    if (statusFilter !== 'all') {
-      params.set('status', statusFilter);
-    }
+    params.set('status', statusFilter);
     if (searchTerm) {
       params.set('search', searchTerm);
     }
