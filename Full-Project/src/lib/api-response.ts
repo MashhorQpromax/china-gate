@@ -24,8 +24,9 @@ interface ApiErrorResponse {
 type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 // Success response helpers
-export function apiSuccess<T>(data: T, status = 200) {
-  const body: ApiSuccessResponse<T> = { success: true, data };
+export function apiSuccess<T>(data: T, message?: string, status = 200) {
+  const body: ApiSuccessResponse<T> & { message?: string } = { success: true, data };
+  if (message) body.message = message;
   return NextResponse.json(body, { status });
 }
 
