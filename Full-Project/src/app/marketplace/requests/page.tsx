@@ -46,7 +46,12 @@ export default function PurchaseRequestsPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    setIsLoggedIn(document.cookie.includes('access_token='));
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.id || data?.data?.id) setIsLoggedIn(true);
+      })
+      .catch(() => {});
   }, []);
 
   const itemsPerPage = 10;

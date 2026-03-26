@@ -33,10 +33,6 @@ interface DealDetail {
   quality_inspections: Array<{ id: string; status: string; result: string | null; created_at: string }>;
 }
 
-function getAuthHeaders(): Record<string, string> {
-  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
-  return {};
-}
 
 function formatCurrency(amount: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);

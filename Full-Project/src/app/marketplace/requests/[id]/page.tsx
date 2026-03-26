@@ -79,7 +79,12 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const [acceptingQuote, setAcceptingQuote] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsLoggedIn(document.cookie.includes('access_token='));
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.id || data?.data?.id) setIsLoggedIn(true);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

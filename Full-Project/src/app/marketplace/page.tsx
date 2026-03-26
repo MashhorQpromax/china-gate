@@ -61,7 +61,12 @@ export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    setIsLoggedIn(document.cookie.includes('access_token='));
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.id || data?.data?.id) setIsLoggedIn(true);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

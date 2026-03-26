@@ -27,10 +27,7 @@ interface ApiDeal {
   supplier_name: string;
 }
 
-function getAuthHeaders(): Record<string, string> {
-  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
-  return {};
-}
+
 
 // Stage display config
 const stageOrder = [

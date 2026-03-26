@@ -66,6 +66,8 @@ export default function ProductsMarketplacePage() {
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
 
+  const [filtersReady, setFiltersReady] = useState(false);
+
   // Read URL params on mount (search, category from homepage)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -73,6 +75,7 @@ export default function ProductsMarketplacePage() {
     const category = urlParams.get('category');
     if (search) setSearchTerm(search);
     if (category) setSelectedCategory(category);
+    setFiltersReady(true);
   }, []);
 
   // Load recently viewed products from localStorage
@@ -85,8 +88,12 @@ export default function ProductsMarketplacePage() {
 
   // Check if user is logged in
   useEffect(() => {
-    const hasToken = document.cookie.includes('access_token=');
-    setIsLoggedIn(hasToken);
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.id || data?.data?.id) setIsLoggedIn(true);
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch categories
@@ -99,62 +106,69 @@ export default function ProductsMarketplacePage() {
       .catch(err => console.error('Failed to load categories:', err));
   }, []);
 
-  // Fetch products
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: itemsPerPage.toString(),
-        status: 'active',
-      });
-
-      if (selectedCategory) params.set('category_id', selectedCategory);
-      if (searchTerm) params.set('search', searchTerm);
-      if (minPrice) params.set('min_price', minPrice);
-      if (maxPrice) params.set('max_price', maxPrice);
-      if (sampleFilter) params.set('sample_available', 'true');
-      if (leadTimeFilter) params.set('lead_time_max', leadTimeFilter);
-      if (certFilter) params.set('certification', certFilter);
-
-      // Map sort options to API params
-      switch (sortBy) {
-        case 'price_low':
-          params.set('sort_by', 'price');
-          params.set('sort_order', 'asc');
-          break;
-        case 'price_high':
-          params.set('sort_by', 'price');
-          params.set('sort_order', 'desc');
-          break;
-        case 'rating':
-          params.set('sort_by', 'rating');
-          break;
-        case 'popular':
-          params.set('sort_by', 'popular');
-          break;
-        default:
-          params.set('sort_by', 'created_at');
-      }
-
-      const res = await fetch(`/api/products?${params}`);
-      const data = await res.json();
-
-      if (data.products) {
-        setProducts(data.products);
-        setTotalPages(data.pagination?.totalPages || 1);
-        setTotalProducts(data.pagination?.total || 0);
-      }
-    } catch (err) {
-      console.error('Failed to load products:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy, minPrice, maxPrice, sampleFilter, leadTimeFilter, certFilter]);
-
+  // Fetch products (with AbortController to prevent race conditions)
   useEffect(() => {
+    if (!filtersReady) return;
+
+    const controller = new AbortController();
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: itemsPerPage.toString(),
+          status: 'active',
+        });
+
+        if (selectedCategory) params.set('category_id', selectedCategory);
+        if (searchTerm) params.set('search', searchTerm);
+        if (minPrice) params.set('min_price', minPrice);
+        if (maxPrice) params.set('max_price', maxPrice);
+        if (sampleFilter) params.set('sample_available', 'true');
+        if (leadTimeFilter) params.set('lead_time_max', leadTimeFilter);
+        if (certFilter) params.set('certification', certFilter);
+
+        // Map sort options to API params
+        switch (sortBy) {
+          case 'price_low':
+            params.set('sort_by', 'price');
+            params.set('sort_order', 'asc');
+            break;
+          case 'price_high':
+            params.set('sort_by', 'price');
+            params.set('sort_order', 'desc');
+            break;
+          case 'rating':
+            params.set('sort_by', 'rating');
+            break;
+          case 'popular':
+            params.set('sort_by', 'popular');
+            break;
+          default:
+            params.set('sort_by', 'created_at');
+        }
+
+        const res = await fetch(`/api/products?${params}`, { signal: controller.signal });
+        const data = await res.json();
+
+        if (data.products) {
+          setProducts(data.products);
+          setTotalPages(data.pagination?.totalPages || 1);
+          setTotalProducts(data.pagination?.total || 0);
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error('Failed to load products:', err);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchProducts();
-  }, [fetchProducts]);
+    return () => controller.abort();
+  }, [filtersReady, currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy, minPrice, maxPrice, sampleFilter, leadTimeFilter, certFilter]);
 
   // Debounced search
   useEffect(() => {

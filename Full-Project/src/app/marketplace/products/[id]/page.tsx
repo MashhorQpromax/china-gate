@@ -128,8 +128,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   // Check if user is logged in
   useEffect(() => {
-    const hasToken = document.cookie.includes('access_token=');
-    setIsLoggedIn(hasToken);
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user?.id || data?.data?.id) setIsLoggedIn(true);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
