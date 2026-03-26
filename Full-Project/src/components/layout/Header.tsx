@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
@@ -38,6 +38,24 @@ const Header = React.forwardRef<HTMLDivElement, HeaderProps>(
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showLanguageMenu, setShowLanguageMenu] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [cartCount, setCartCount] = useState(0);
+
+    // Track inquiry cart count from localStorage
+    useEffect(() => {
+      const updateCartCount = () => {
+        try {
+          const cart = JSON.parse(localStorage.getItem('cg_inquiry_cart') || '[]');
+          setCartCount(cart.length);
+        } catch { setCartCount(0); }
+      };
+      updateCartCount();
+      window.addEventListener('inquiry-cart-updated', updateCartCount);
+      window.addEventListener('storage', updateCartCount);
+      return () => {
+        window.removeEventListener('inquiry-cart-updated', updateCartCount);
+        window.removeEventListener('storage', updateCartCount);
+      };
+    }, []);
 
     const languages = [
       { code: 'en', label: 'English' },
@@ -81,6 +99,22 @@ const Header = React.forwardRef<HTMLDivElement, HeaderProps>(
 
             {/* Right side items */}
             <div className={cn('flex items-center gap-4', isRTL && 'flex-row-reverse')}>
+              {/* Inquiry Cart */}
+              <a href="/marketplace/inquiry-cart" className="relative p-2 text-gray-400 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+                </svg>
+                {cartCount > 0 && (
+                  <Badge
+                    variant="danger"
+                    size="sm"
+                    className="absolute -top-2 -right-2 px-2 py-0.5"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
+              </a>
+
               {/* Notifications */}
               {isAuthenticated && (
                 <button className="relative p-2 text-gray-400 hover:text-white transition-colors">

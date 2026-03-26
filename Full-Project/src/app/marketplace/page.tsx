@@ -40,6 +40,17 @@ interface RFQ {
   profiles: { company_name: string; country: string } | null;
 }
 
+interface Supplier {
+  id: string;
+  full_name_en: string;
+  company_name: string;
+  country: string;
+  city: string;
+  avatar_url: string;
+  productCount: number;
+  verification: { is_verified: boolean; verification_level: string } | null;
+}
+
 const categoryIcons: Record<string, string> = {
   electronics: '📱',
   textiles: '👔',
@@ -58,6 +69,7 @@ export default function MarketplacePage() {
   const [latestProducts, setLatestProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [recentRfqs, setRecentRfqs] = useState<RFQ[]>([]);
+  const [topSuppliers, setTopSuppliers] = useState<Supplier[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalRfqs, setTotalRfqs] = useState(0);
@@ -74,7 +86,7 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     let loaded = 0;
-    const checkDone = () => { loaded++; if (loaded >= 4) setLoadingData(false); };
+    const checkDone = () => { loaded++; if (loaded >= 5) setLoadingData(false); };
 
     // Fetch featured products
     fetch('/api/products?status=active&featured=true&limit=4')
@@ -101,6 +113,13 @@ export default function MarketplacePage() {
     fetch('/api/rfq?limit=5')
       .then(r => r.json())
       .then(d => { setRecentRfqs(d.data || []); setTotalRfqs(d.pagination?.total || d.data?.length || 0); })
+      .catch(() => {})
+      .finally(checkDone);
+
+    // Fetch top suppliers
+    fetch('/api/suppliers?limit=6')
+      .then(r => r.json())
+      .then(d => setTopSuppliers(d.suppliers || []))
       .catch(() => {})
       .finally(checkDone);
   }, []);
@@ -343,6 +362,42 @@ export default function MarketplacePage() {
                       ${product.base_price?.toLocaleString()}
                     </p>
                     <p className="text-gray-500 text-xs mt-1">MOQ: {product.moq} {product.moq_unit}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Featured Suppliers */}
+        {topSuppliers.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white">Top Suppliers</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {topSuppliers.map(supplier => (
+                <Link
+                  key={supplier.id}
+                  href={`/marketplace/suppliers/${supplier.id}`}
+                  className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 text-center hover:border-[#c41e3a]/40 transition-all group"
+                >
+                  <div className="w-14 h-14 rounded-full bg-[#c41e3a] flex items-center justify-center text-xl font-bold mx-auto mb-2 overflow-hidden">
+                    {supplier.avatar_url ? (
+                      <img src={supplier.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (supplier.company_name || supplier.full_name_en || 'S').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <h3 className="text-sm font-medium text-white group-hover:text-[#c41e3a] transition-colors line-clamp-1">
+                    {supplier.company_name || supplier.full_name_en}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{supplier.country || 'China'}</p>
+                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                    <span className="text-xs text-gray-400">{supplier.productCount} products</span>
+                    {supplier.verification?.is_verified && (
+                      <span className="text-[10px] text-green-400 font-medium">✓</span>
+                    )}
                   </div>
                 </Link>
               ))}
