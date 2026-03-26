@@ -42,24 +42,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('letters_of_credit')
-      .select(
-        `
-        *,
-        deals (
-          id,
-          reference_number,
-          buyer_id,
-          supplier_id,
-          product,
-          quantity,
-          unit_price,
-          total_value,
-          currency,
-          status
-        )
-        `,
-        { count: 'exact' }
-      );
+      .select('*', { count: 'exact' });
 
     // Role-based filtering
     if (!user.isAdmin) {
@@ -134,23 +117,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('letters_of_credit')
       .insert([lcData])
-      .select(
-        `
-        *,
-        deals (
-          id,
-          reference_number,
-          buyer_id,
-          supplier_id,
-          product,
-          quantity,
-          unit_price,
-          total_value,
-          currency,
-          status
-        )
-        `
-      )
+      .select('*')
       .single();
 
     if (error) throw error;

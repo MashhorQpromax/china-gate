@@ -27,24 +27,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('shipments')
-      .select(
-        `
-        *,
-        deals:deal_id (
-          id,
-          reference_number,
-          supplier_id,
-          buyer_id,
-          product_details,
-          quantity,
-          unit_price,
-          total_amount,
-          currency,
-          status
-        )
-      `,
-        { count: 'exact' }
-      );
+      .select('*', { count: 'exact' });
 
     // Filter based on user role
     if (!user.isAdmin) {
