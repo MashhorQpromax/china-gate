@@ -47,7 +47,9 @@ export default function ProductCard({ product, isListView = false }: ProductCard
                   background: `linear-gradient(135deg, ${getRandomColor(product.id)}40 0%, ${getRandomColor(product.id)} 100%)`,
                 }}
               >
-                <span className="text-3xl opacity-50">📦</span>
+                <span className="text-xs font-bold text-white opacity-80 px-2 text-center leading-tight">
+                  {product.nameEn.length > 20 ? product.nameEn.substring(0, 20) + '...' : product.nameEn}
+                </span>
               </div>
             )}
 
@@ -134,7 +136,9 @@ export default function ProductCard({ product, isListView = false }: ProductCard
               background: `linear-gradient(135deg, ${getRandomColor(product.id)}40 0%, ${getRandomColor(product.id)} 100%)`,
             }}
           >
-            <span className="text-5xl opacity-50 group-hover:scale-110 transition-transform">📦</span>
+            <span className="text-3xl font-bold text-white opacity-80 px-4 text-center leading-tight group-hover:scale-110 transition-transform">
+              {product.nameEn.length > 30 ? product.nameEn.substring(0, 30) + '...' : product.nameEn}
+            </span>
           </div>
         )}
 

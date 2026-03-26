@@ -146,13 +146,30 @@ export default function ProductsMarketplacePage() {
         </div>
 
         {/* Search Bar */}
-        <input
-          type="text"
-          placeholder="Search products, suppliers, brands..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#c41e3a] outline-none transition-colors"
-        />
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search products, suppliers, brands..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#1a1d23] border border-[#242830] rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#c41e3a] outline-none transition-colors"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
@@ -236,9 +253,23 @@ export default function ProductsMarketplacePage() {
           <div className="lg:col-span-3 space-y-6">
             {/* Toolbar */}
             <div className="flex items-center justify-between">
-              <p className="text-gray-400">
-                {loading ? 'Loading...' : `Showing ${totalProducts} products`}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-gray-400">
+                  {loading ? 'Loading...' : `Showing ${totalProducts} product${totalProducts !== 1 ? 's' : ''}`}
+                </p>
+                {(selectedCategory || searchTerm) && (
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('');
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs text-[#c41e3a] hover:text-red-400 transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
               <select
                 value={sortBy}
                 onChange={(e) => {

@@ -14,17 +14,20 @@ interface PricingTier {
   id: string;
   min_quantity: number;
   max_quantity: number | null;
-  unit_price: number;
+  price: number;
+  currency: string;
+  sort_order: number;
 }
 
 interface ProductVariant {
   id: string;
   variant_name: string;
+  variant_value: string;
   sku_suffix: string;
-  attributes: Record<string, string>;
   price_adjustment: number;
   stock_quantity: number;
   is_active: boolean;
+  sort_order: number;
 }
 
 interface ProductImage {
@@ -48,20 +51,24 @@ interface ProductDetail {
   name_en: string;
   name_ar: string;
   name_zh: string;
-  description_en: string;
-  description_ar: string;
+  short_description_en: string;
+  short_description_ar: string;
+  full_description_en: string;
+  full_description_ar: string;
   base_price: number;
   currency: string;
   moq: number;
   moq_unit: string;
-  lead_time_days: number;
+  lead_time_min: number;
+  lead_time_max: number;
+  lead_time_unit: string;
   main_image_url: string;
   hs_code: string;
   origin_country: string;
   certifications: string[];
   specifications: Record<string, string>[];
   featured: boolean;
-  samples_available: boolean;
+  sample_available: boolean;
   customization_available: boolean;
   avg_rating: number;
   review_count: number;
@@ -72,7 +79,7 @@ interface ProductDetail {
   production_capacity: number;
   production_capacity_unit: string;
   warranty_info: string;
-  packaging_details: string;
+  packaging_detail: string;
   pricing_tiers: PricingTier[];
   variants: ProductVariant[];
   images: ProductImage[];
@@ -188,7 +195,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       const sorted = [...product.pricing_tiers].sort((a, b) => a.min_quantity - b.min_quantity);
       for (let i = sorted.length - 1; i >= 0; i--) {
         if (qty >= sorted[i].min_quantity) {
-          return sorted[i].unit_price;
+          return sorted[i].price;
         }
       }
     }
@@ -227,7 +234,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   background: `linear-gradient(135deg, ${getRandomColor(product.id)}40 0%, ${getRandomColor(product.id)} 100%)`,
                 }}
               >
-                <span className="text-6xl text-white opacity-50">📦</span>
+                <span className="text-4xl font-bold text-white opacity-80 px-6 text-center leading-tight">
+                  {product.name_en}
+                </span>
               </div>
             )}
             {allImages.length > 1 && (
@@ -249,7 +258,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           background: `linear-gradient(135deg, ${getRandomColor(product.id)}40 0%, ${getRandomColor(product.id)} 100%)`,
                         }}
                       >
-                        <span className="text-lg opacity-50">📦</span>
+                        <span className="text-xs font-bold text-white opacity-60 px-1 text-center">{img.label}</span>
                       </div>
                     )}
                   </button>
@@ -268,7 +277,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     Featured
                   </span>
                 )}
-                {product.samples_available && (
+                {product.sample_available && (
                   <span className="px-3 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded-full text-xs font-semibold">
                     Samples Available
                   </span>
@@ -285,8 +294,15 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
 
             {/* Description */}
-            {product.description_en && (
-              <p className="text-gray-300 leading-relaxed">{product.description_en}</p>
+            {(product.short_description_en || product.full_description_en) && (
+              <div className="space-y-2">
+                {product.short_description_en && (
+                  <p className="text-gray-300 leading-relaxed">{product.short_description_en}</p>
+                )}
+                {product.full_description_en && product.full_description_en !== product.short_description_en && (
+                  <p className="text-gray-400 text-sm leading-relaxed">{product.full_description_en}</p>
+                )}
+              </div>
             )}
 
             {/* Key Specs */}
@@ -306,7 +322,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <div>
                 <p className="text-xs text-gray-500 mb-1">Lead Time</p>
                 <p className="text-lg font-bold text-white">
-                  {product.lead_time_days ? `${product.lead_time_days} days` : 'Contact supplier'}
+                  {product.lead_time_min && product.lead_time_max
+                    ? `${product.lead_time_min}-${product.lead_time_max} ${product.lead_time_unit || 'days'}`
+                    : product.lead_time_min
+                      ? `${product.lead_time_min}+ ${product.lead_time_unit || 'days'}`
+                      : 'Contact supplier'}
                 </p>
               </div>
               <div>
@@ -328,7 +348,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           {tier.min_quantity.toLocaleString()}
                           {tier.max_quantity ? ` - ${tier.max_quantity.toLocaleString()}` : '+'} {product.moq_unit || 'units'}
                         </p>
-                        <p className="text-[#d4a843] font-bold">${tier.unit_price}</p>
+                        <p className="text-[#d4a843] font-bold">${tier.price}</p>
                       </div>
                     ))}
                 </div>
@@ -345,14 +365,32 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       key={variant.id}
                       className="px-3 py-1.5 bg-[#0c0f14] border border-[#242830] text-gray-300 rounded-lg text-sm hover:border-[#d4a843] transition-colors cursor-pointer"
                     >
-                      {variant.variant_name}
+                      {variant.variant_value || variant.variant_name}
                       {variant.price_adjustment !== 0 && (
                         <span className="text-gray-500 ml-1">
-                          ({variant.price_adjustment > 0 ? '+' : ''}{variant.price_adjustment})
+                          ({variant.price_adjustment > 0 ? '+$' : '-$'}{Math.abs(variant.price_adjustment)})
                         </span>
                       )}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Specifications */}
+            {product.specifications && Array.isArray(product.specifications) && product.specifications.length > 0 && (
+              <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-3">Specifications</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {product.specifications.map((spec, idx) => {
+                    const entries = Object.entries(spec);
+                    return entries.map(([key, value]) => (
+                      <div key={`${idx}-${key}`} className="flex justify-between py-2 border-b border-[#242830] last:border-0">
+                        <span className="text-gray-400 text-sm">{key}</span>
+                        <span className="text-white text-sm font-medium">{value}</span>
+                      </div>
+                    ));
+                  })}
                 </div>
               </div>
             )}
@@ -391,10 +429,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <p className="text-white font-semibold">{product.brand_name}</p>
                 </div>
               )}
-              {product.packaging_details && (
+              {product.packaging_detail && (
                 <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4">
                   <p className="text-gray-500 mb-1">Packaging</p>
-                  <p className="text-white font-semibold">{product.packaging_details}</p>
+                  <p className="text-white font-semibold">{product.packaging_detail}</p>
                 </div>
               )}
             </div>
