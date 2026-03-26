@@ -37,43 +37,45 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      // Log failed login attempt
-      // Find user by email to log the attempt
-      const { data: users } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .limit(1);
+      // Log failed login attempt (best effort, don't fail if logging fails)
+      try {
+        const { data: users } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .limit(1);
 
-      await supabaseAdmin.from('login_history').insert({
-        user_id: users?.[0]?.id || null,
-        ip_address: ip,
-        browser_name: clientInfo?.browserName || null,
-        browser_version: clientInfo?.browserVersion || null,
-        os_name: clientInfo?.osName || null,
-        os_version: clientInfo?.osVersion || null,
-        device_type: clientInfo?.deviceType || 'unknown',
-        device_brand: clientInfo?.deviceBrand || null,
-        device_model: clientInfo?.deviceModel || null,
-        screen_width: clientInfo?.screenWidth || null,
-        screen_height: clientInfo?.screenHeight || null,
-        user_agent: clientInfo?.userAgent || null,
-        login_method: 'email',
-        login_status: 'failed',
-        failure_reason: error.message,
-      }).catch(() => {});
+        await supabaseAdmin.from('login_history').insert({
+          user_id: users?.[0]?.id || null,
+          ip_address: ip,
+          browser_name: clientInfo?.browserName || null,
+          browser_version: clientInfo?.browserVersion || null,
+          os_name: clientInfo?.osName || null,
+          os_version: clientInfo?.osVersion || null,
+          device_type: clientInfo?.deviceType || 'unknown',
+          device_brand: clientInfo?.deviceBrand || null,
+          device_model: clientInfo?.deviceModel || null,
+          screen_width: clientInfo?.screenWidth || null,
+          screen_height: clientInfo?.screenHeight || null,
+          user_agent: clientInfo?.userAgent || null,
+          login_method: 'email',
+          login_status: 'failed',
+          failure_reason: error.message,
+        });
 
-      // Log security audit
-      await supabaseAdmin.from('security_audit_log').insert({
-        user_id: users?.[0]?.id || null,
-        action: 'login_failed',
-        action_type: 'auth',
-        description: `Failed login attempt for ${email}`,
-        ip_address: ip,
-        user_agent: clientInfo?.userAgent || null,
-        metadata: { email, reason: error.message },
-        risk_level: 'medium',
-      }).catch(() => {});
+        await supabaseAdmin.from('security_audit_log').insert({
+          user_id: users?.[0]?.id || null,
+          action: 'login_failed',
+          action_type: 'auth',
+          description: `Failed login attempt for ${email}`,
+          ip_address: ip,
+          user_agent: clientInfo?.userAgent || null,
+          metadata: { email, reason: error.message },
+          risk_level: 'medium',
+        });
+      } catch (logError) {
+        console.error('Failed to log login attempt:', logError);
+      }
 
       return NextResponse.json(
         { error: error.message },
@@ -88,41 +90,42 @@ export async function POST(request: NextRequest) {
       .eq('id', data.user.id)
       .single();
 
-    // Log successful login
-    await supabaseAdmin.from('login_history').insert({
-      user_id: data.user.id,
-      ip_address: ip,
-      browser_name: clientInfo?.browserName || null,
-      browser_version: clientInfo?.browserVersion || null,
-      os_name: clientInfo?.osName || null,
-      os_version: clientInfo?.osVersion || null,
-      device_type: clientInfo?.deviceType || 'unknown',
-      device_brand: clientInfo?.deviceBrand || null,
-      device_model: clientInfo?.deviceModel || null,
-      screen_width: clientInfo?.screenWidth || null,
-      screen_height: clientInfo?.screenHeight || null,
-      user_agent: clientInfo?.userAgent || null,
-      login_method: 'email',
-      login_status: 'success',
-    }).catch((err) => {
-      console.error('Login history insert error:', err);
-    });
+    // Log successful login (best effort)
+    try {
+      await supabaseAdmin.from('login_history').insert({
+        user_id: data.user.id,
+        ip_address: ip,
+        browser_name: clientInfo?.browserName || null,
+        browser_version: clientInfo?.browserVersion || null,
+        os_name: clientInfo?.osName || null,
+        os_version: clientInfo?.osVersion || null,
+        device_type: clientInfo?.deviceType || 'unknown',
+        device_brand: clientInfo?.deviceBrand || null,
+        device_model: clientInfo?.deviceModel || null,
+        screen_width: clientInfo?.screenWidth || null,
+        screen_height: clientInfo?.screenHeight || null,
+        user_agent: clientInfo?.userAgent || null,
+        login_method: 'email',
+        login_status: 'success',
+      });
 
-    // Log security audit
-    await supabaseAdmin.from('security_audit_log').insert({
-      user_id: data.user.id,
-      action: 'login_success',
-      action_type: 'auth',
-      description: `Successful login from ${clientInfo?.browserName || 'Unknown'} on ${clientInfo?.osName || 'Unknown'}`,
-      ip_address: ip,
-      user_agent: clientInfo?.userAgent || null,
-      metadata: {
-        browser: `${clientInfo?.browserName || ''} ${clientInfo?.browserVersion || ''}`,
-        os: `${clientInfo?.osName || ''} ${clientInfo?.osVersion || ''}`,
-        device: clientInfo?.deviceType || 'unknown',
-      },
-      risk_level: 'low',
-    }).catch(() => {});
+      await supabaseAdmin.from('security_audit_log').insert({
+        user_id: data.user.id,
+        action: 'login_success',
+        action_type: 'auth',
+        description: `Successful login from ${clientInfo?.browserName || 'Unknown'} on ${clientInfo?.osName || 'Unknown'}`,
+        ip_address: ip,
+        user_agent: clientInfo?.userAgent || null,
+        metadata: {
+          browser: `${clientInfo?.browserName || ''} ${clientInfo?.browserVersion || ''}`,
+          os: `${clientInfo?.osName || ''} ${clientInfo?.osVersion || ''}`,
+          device: clientInfo?.deviceType || 'unknown',
+        },
+        risk_level: 'low',
+      });
+    } catch (logError) {
+      console.error('Failed to log successful login:', logError);
+    }
 
     return NextResponse.json(
       {
