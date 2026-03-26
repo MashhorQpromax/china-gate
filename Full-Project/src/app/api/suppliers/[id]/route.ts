@@ -25,7 +25,7 @@ export async function GET(
     // Fetch supplier profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, full_name_en, full_name_ar, company_name, country, city, phone, avatar_url, bio, role, created_at')
+      .select('id, full_name_en, full_name_ar, company_name, country, city, phone, avatar_url, role, created_at')
       .eq('id', supplierId)
       .single();
 

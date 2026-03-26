@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Fetch supplier profiles
     let query = supabase
       .from('profiles')
-      .select('id, full_name_en, full_name_ar, company_name, country, city, avatar_url, bio, created_at')
+      .select('id, full_name_en, full_name_ar, company_name, country, city, avatar_url, created_at')
       .eq('role', 'chinese_supplier')
       .order('created_at', { ascending: false })
       .limit(limit);
