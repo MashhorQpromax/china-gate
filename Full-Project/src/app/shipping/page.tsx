@@ -21,8 +21,8 @@ interface ApiShipment {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 const statusColors: Record<string, string> = {
@@ -60,7 +60,6 @@ export default function ShippingPage() {
       setError(null);
 
       const res = await fetch(`/api/shipments?page=${page}&limit=20`, {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
 

@@ -78,12 +78,6 @@ export default function CustomsPage() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        setError('Authentication required');
-        return;
-      }
-
       const params = new URLSearchParams();
       params.append('page', pageData.page.toString());
       params.append('limit', pageData.limit.toString());
@@ -94,9 +88,7 @@ export default function CustomsPage() {
 
       const response = await fetch(`/api/customs?${params.toString()}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (!response.ok) {

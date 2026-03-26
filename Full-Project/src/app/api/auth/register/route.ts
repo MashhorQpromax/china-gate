@@ -24,7 +24,42 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!email || !password || !fullNameEn || !accountType) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: email, password, fullNameEn, and accountType are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength (server-side)
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters' },
+        { status: 400 }
+      );
+    }
+    if (!/[A-Z]/.test(password)) {
+      return NextResponse.json(
+        { error: 'Password must contain at least one uppercase letter' },
+        { status: 400 }
+      );
+    }
+    if (!/\d/.test(password)) {
+      return NextResponse.json(
+        { error: 'Password must contain at least one number' },
+        { status: 400 }
+      );
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return NextResponse.json(
+        { error: 'Password must contain at least one special character' },
         { status: 400 }
       );
     }
@@ -34,6 +69,14 @@ export async function POST(request: NextRequest) {
     if (!validTypes.includes(accountType)) {
       return NextResponse.json(
         { error: 'Invalid account type' },
+        { status: 400 }
+      );
+    }
+
+    // Validate name length
+    if (fullNameEn.trim().length < 2) {
+      return NextResponse.json(
+        { error: 'Full name must be at least 2 characters' },
         { status: 400 }
       );
     }

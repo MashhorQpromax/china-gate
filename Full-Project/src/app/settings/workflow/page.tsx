@@ -27,8 +27,8 @@ interface WorkflowConfig {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 const defaultConfig: WorkflowConfig = {
@@ -50,7 +50,6 @@ export default function WorkflowSettingsPage() {
     try {
       setLoadingUsers(true);
       const res = await fetch('/api/admin/users?limit=100', {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
       if (res.ok) {

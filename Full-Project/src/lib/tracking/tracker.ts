@@ -50,16 +50,15 @@ class ChinaGateTracker {
   }
 
   private async startSession() {
-    const token = localStorage.getItem('access_token');
-    if (!token || !this.clientInfo) return;
+    if (!this.clientInfo) return;
 
     try {
       const res = await fetch('/api/tracking/session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'start',
           clientInfo: this.clientInfo,
@@ -80,9 +79,8 @@ class ChinaGateTracker {
   }
 
   private async endSession() {
-    const token = localStorage.getItem('access_token');
     const sessionId = this.sessionId || localStorage.getItem('tracking_session_id');
-    if (!token || !sessionId) return;
+    if (!sessionId) return;
 
     // Use sendBeacon for reliability on page unload
     const payload = JSON.stringify({
@@ -248,9 +246,6 @@ class ChinaGateTracker {
     const events = [...this.eventQueue];
     this.eventQueue = [];
 
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-
     const payload = JSON.stringify({ events });
 
     if (useBeacon) {
@@ -263,8 +258,8 @@ class ChinaGateTracker {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: payload,
       });
     } catch (err) {

@@ -27,8 +27,8 @@ interface LCDetail {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 function formatCurrency(amount: number, currency = 'USD'): string {
@@ -88,7 +88,6 @@ export default function LCDetailPage() {
       setError(null);
 
       const res = await fetch(`/api/lc/${lcId}`, {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
 

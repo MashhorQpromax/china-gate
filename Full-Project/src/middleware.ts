@@ -7,9 +7,13 @@ const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/register',
+  '/forgot-password',
+  '/reset-password',
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/logout',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/tracking/session',
   '/api/tracking/events',
 ];

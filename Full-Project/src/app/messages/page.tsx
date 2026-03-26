@@ -36,8 +36,8 @@ interface ApiConversation {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 function getCurrentUserId(): string | null {
@@ -74,7 +74,6 @@ export default function MessagesPage() {
       setError(null);
 
       const res = await fetch('/api/messages?limit=50', {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
 
@@ -113,7 +112,6 @@ export default function MessagesPage() {
       setMessagesLoading(true);
 
       const res = await fetch(`/api/messages/${convId}?limit=100`, {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
 
@@ -170,7 +168,6 @@ export default function MessagesPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({ content: text }),

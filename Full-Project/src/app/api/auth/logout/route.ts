@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       await supabase.auth.admin.signOut(token).catch(() => {});
     }
 
-    // Clear the cookie
+    // Clear the cookies
     const response = NextResponse.json(
       { message: 'Logged out successfully' },
       { status: 200 }
@@ -41,16 +41,22 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
       expires: new Date(0),
     });
+    response.cookies.set('refresh_token', '', {
+      path: '/api/auth',
+      maxAge: 0,
+      expires: new Date(0),
+    });
 
     return response;
   } catch (error) {
     console.error('Logout error:', error);
-    // Still clear cookie even on error
+    // Still clear cookies even on error
     const response = NextResponse.json(
       { message: 'Logged out' },
       { status: 200 }
     );
     response.cookies.set('access_token', '', { path: '/', maxAge: 0 });
+    response.cookies.set('refresh_token', '', { path: '/api/auth', maxAge: 0 });
     return response;
   }
 }

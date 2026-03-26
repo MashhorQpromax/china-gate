@@ -34,8 +34,8 @@ interface DealDetail {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 function formatCurrency(amount: number, currency = 'USD'): string {
@@ -92,7 +92,6 @@ export default function DealDetailPage() {
       setError(null);
 
       const res = await fetch(`/api/deals/${dealId}`, {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
 

@@ -46,12 +46,7 @@ export default function NotificationsPage() {
       setLoading(true);
       setError(null);
 
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-
       const res = await fetch(`/api/notifications?page=${pageNum}&limit=20`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         credentials: 'include',
       });
 
@@ -103,13 +98,10 @@ export default function NotificationsPage() {
     setMarkingRead(id);
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-
       const res = await fetch('/api/notifications', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({ notification_ids: [id] }),
@@ -142,13 +134,10 @@ export default function NotificationsPage() {
     setUnreadCount(0);
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-
       const res = await fetch('/api/notifications', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({ all: true }),

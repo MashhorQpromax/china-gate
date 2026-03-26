@@ -17,8 +17,8 @@ interface User {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with credentials: 'include'
+  return {};
 }
 
 const typeColors: Record<string, string> = {

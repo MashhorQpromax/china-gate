@@ -46,12 +46,9 @@ export default function TrainingPartnershipsPage() {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('access_token');
 
       const response = await fetch('/api/partnerships?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (!response.ok) {

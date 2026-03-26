@@ -80,6 +80,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           email,
           password,
@@ -93,12 +94,9 @@ export default function LoginPage() {
         throw new Error(result.error || 'Login failed');
       }
 
-      // Store session token in localStorage and cookie
-      if (result.session?.access_token) {
-        localStorage.setItem('access_token', result.session.access_token);
-        localStorage.setItem('refresh_token', result.session.refresh_token);
+      // Store profile for UI display only (tokens are in httpOnly cookies now)
+      if (result.user?.profile) {
         localStorage.setItem('user_profile', JSON.stringify(result.user.profile));
-        document.cookie = `access_token=${result.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       }
 
       // Redirect based on account type

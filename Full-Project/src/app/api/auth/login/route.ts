@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
       console.error('Failed to log successful login:', logError);
     }
 
-    return NextResponse.json(
+    // Create response with user profile and session info (tokens NOT included)
+    const response = NextResponse.json(
       {
         message: 'Login successful',
         user: {
@@ -136,13 +137,31 @@ export async function POST(request: NextRequest) {
           profile,
         },
         session: {
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
           expires_at: data.session.expires_at,
         },
       },
       { status: 200 }
     );
+
+    // Set access_token as httpOnly, secure cookie (7 days)
+    response.cookies.set('access_token', data.session.access_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+    });
+
+    // Set refresh_token as httpOnly, secure cookie (30 days)
+    response.cookies.set('refresh_token', data.session.refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/api/auth',
+      maxAge: 60 * 60 * 24 * 30, // 30 days in seconds
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

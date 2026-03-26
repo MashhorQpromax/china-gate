@@ -35,8 +35,8 @@ interface LCFormData {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  // httpOnly cookies are sent automatically with fetch when credentials: 'include' is set
+  return {};
 }
 
 export default function LCForm({ onSubmit }: LCFormProps) {
@@ -64,7 +64,6 @@ export default function LCForm({ onSubmit }: LCFormProps) {
     try {
       setLoadingDeals(true);
       const res = await fetch('/api/deals?limit=100', {
-        headers: { ...getAuthHeaders() },
         credentials: 'include',
       });
       if (res.ok) {

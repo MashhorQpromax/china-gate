@@ -123,14 +123,6 @@ export default function QualityPage() {
     setError(null);
 
     try {
-      const accessToken = localStorage.getItem('access_token');
-
-      if (!accessToken) {
-        setError('No access token found. Please log in again.');
-        setLoading(false);
-        return;
-      }
-
       const params = new URLSearchParams();
       params.append('page', page.toString());
       params.append('limit', limit.toString());
@@ -144,9 +136,9 @@ export default function QualityPage() {
       const response = await fetch(`/api/quality?${params.toString()}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {

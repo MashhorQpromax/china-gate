@@ -91,13 +91,6 @@ export default function DisputesPage() {
       setLoading(true);
       setError(null);
 
-      const accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        setError('Not authenticated');
-        setLoading(false);
-        return;
-      }
-
       const params = new URLSearchParams();
       params.set('page', page.toString());
       params.set('limit', limit.toString());
@@ -107,9 +100,9 @@ export default function DisputesPage() {
       const response = await fetch(`/api/disputes?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {
