@@ -23,6 +23,7 @@ const PUBLIC_ROUTES = [
   '/marketplace',
   '/api/products',
   '/api/categories',
+  '/api/suppliers',
   '/api/rfq',
 ];
 

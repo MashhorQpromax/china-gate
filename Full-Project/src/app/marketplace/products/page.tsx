@@ -64,7 +64,7 @@ export default function ProductsMarketplacePage() {
   const [certFilter, setCertFilter] = useState('');
   const [recentlyViewed, setRecentlyViewed] = useState<{ id: string; name_en: string; base_price: number; currency: string; main_image_url: string; brand_name: string }[]>([]);
 
-  const itemsPerPage = viewMode === 'grid' ? 12 : 10;
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const [filtersReady, setFiltersReady] = useState(false);
 
@@ -436,20 +436,34 @@ export default function ProductsMarketplacePage() {
                   </button>
                 )}
               </div>
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value as SortOption);
-                  setCurrentPage(1);
-                }}
-                className="hidden lg:block bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-2 text-white focus:border-[#c41e3a] outline-none"
-              >
-                <option value="newest">Newest</option>
-                <option value="price_low">Price: Low to High</option>
-                <option value="price_high">Price: High to Low</option>
-                <option value="rating">Highest Rating</option>
-                <option value="popular">Most Popular</option>
-              </select>
+              <div className="hidden lg:flex items-center gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value as SortOption);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-[#1a1d23] border border-[#242830] rounded-lg px-4 py-2 text-white focus:border-[#c41e3a] outline-none"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="price_low">Price: Low to High</option>
+                  <option value="price_high">Price: High to Low</option>
+                  <option value="rating">Highest Rating</option>
+                  <option value="popular">Most Popular</option>
+                </select>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(parseInt(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-[#1a1d23] border border-[#242830] rounded-lg px-3 py-2 text-white text-sm focus:border-[#c41e3a] outline-none"
+                >
+                  <option value={12}>12 / page</option>
+                  <option value={24}>24 / page</option>
+                  <option value={48}>48 / page</option>
+                </select>
+              </div>
             </div>
 
             {/* Loading State */}

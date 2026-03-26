@@ -125,6 +125,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [error, setError] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   // Check if user is logged in
   useEffect(() => {
@@ -498,6 +499,29 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               )}
             </div>
 
+            {/* Stock Status & Sample */}
+            <div className="flex flex-wrap items-center gap-3">
+              {product.stock_quantity !== undefined && product.stock_quantity !== null && (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                  product.stock_quantity > 100
+                    ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+                    : product.stock_quantity > 0
+                    ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                    : 'bg-red-500/15 text-red-400 border border-red-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    product.stock_quantity > 100 ? 'bg-green-400' : product.stock_quantity > 0 ? 'bg-yellow-400' : 'bg-red-400'
+                  }`} />
+                  {product.stock_quantity > 100 ? 'In Stock' : product.stock_quantity > 0 ? 'Low Stock' : 'Out of Stock'}
+                </span>
+              )}
+              {product.sample_available && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                  Sample Available
+                </span>
+              )}
+            </div>
+
             {/* Stats */}
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <span>👁 {product.view_count || 0} views</span>
@@ -522,6 +546,34 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 {isLoggedIn ? 'Request Quote' : 'Login to Quote'}
               </Link>
             </div>
+            {/* Request Sample */}
+            {product.sample_available && (
+              <button
+                onClick={async () => {
+                  if (!isLoggedIn) {
+                    router.push('/login?redirect=/marketplace/products/' + product.id);
+                    return;
+                  }
+                  try {
+                    const res = await fetch('/api/messages', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        recipient_id: product.supplier_id,
+                        content: `Hi, I'd like to request a sample of: ${product.name_en}. Please provide sample pricing and shipping details.`,
+                      }),
+                    });
+                    if (res.ok) router.push('/messages');
+                  } catch {
+                    router.push('/messages');
+                  }
+                }}
+                className="w-full px-6 py-2.5 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/10 transition-colors text-sm font-medium"
+              >
+                {isLoggedIn ? '🧪 Request Sample' : 'Login to Request Sample'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -531,9 +583,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div className="flex items-start justify-between gap-6 flex-col sm:flex-row">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-bold text-white">
+                  <a href={`/marketplace/suppliers/${product.supplier_id}`} className="text-xl font-bold text-white hover:text-[#c41e3a] transition-colors">
                     {product.supplier.company_name || product.supplier.full_name_en}
-                  </h3>
+                  </a>
                   {product.verification?.is_verified && (
                     <span className="px-2 py-1 bg-green-600 bg-opacity-20 text-green-400 rounded text-xs font-semibold">
                       ✓ Verified
@@ -543,11 +595,17 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <p className="text-gray-400 mb-3">
                   {[product.supplier.city, product.supplier.country].filter(Boolean).join(', ')}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-3">
                   <span className="text-yellow-400">★</span>
                   <span className="font-semibold text-white">{product.avg_rating || 0}</span>
                   <span className="text-gray-400">({product.review_count || 0} reviews)</span>
                 </div>
+                <a
+                  href={`/marketplace/suppliers/${product.supplier_id}`}
+                  className="text-sm text-[#c41e3a] hover:underline"
+                >
+                  View All Products →
+                </a>
               </div>
               <div className="flex gap-3">
                 <button
@@ -697,7 +755,42 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </button>
               <button
                 onClick={() => {
+                  if (!product) return;
+                  const qty = parseInt(inquiryQuantity || '0');
+                  if (qty < (product.moq || 1)) return;
+
+                  // Save to localStorage inquiry cart
+                  const cartKey = 'cg_inquiry_cart';
+                  const existing = JSON.parse(localStorage.getItem(cartKey) || '[]');
+                  const existingIdx = existing.findIndex((item: any) => item.productId === product.id);
+
+                  const cartItem = {
+                    productId: product.id,
+                    name: product.name_en,
+                    image: product.main_image_url || (product.images?.[0]?.image_url),
+                    price: product.price,
+                    currency: product.currency || 'USD',
+                    quantity: qty,
+                    moq: product.moq,
+                    unit: product.unit || 'pcs',
+                    supplierId: product.supplier_id,
+                    supplierName: product.supplier?.company_name || product.supplier?.full_name_en || '',
+                    addedAt: new Date().toISOString(),
+                  };
+
+                  if (existingIdx >= 0) {
+                    existing[existingIdx] = cartItem;
+                  } else {
+                    existing.push(cartItem);
+                  }
+                  localStorage.setItem(cartKey, JSON.stringify(existing));
+
+                  // Dispatch event so navbar can update cart count
+                  window.dispatchEvent(new CustomEvent('inquiry-cart-updated'));
+
                   setShowInquiryModal(false);
+                  setAddedToCart(true);
+                  setTimeout(() => setAddedToCart(false), 3000);
                 }}
                 className="flex-1 px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
               >
@@ -705,6 +798,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Added to Cart Toast */}
+      {addedToCart && (
+        <div className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-fade-in">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          <span>Added to inquiry cart!</span>
+          <a href="/marketplace/inquiry-cart" className="underline text-green-100 hover:text-white text-sm ml-2">View Cart</a>
         </div>
       )}
     </DashboardLayout>

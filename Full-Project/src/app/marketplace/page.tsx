@@ -161,7 +161,7 @@ export default function MarketplacePage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link
             href="/marketplace/products"
             className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-[#c41e3a] transition-colors group"
@@ -198,14 +198,26 @@ export default function MarketplacePage() {
               Submit a purchase request and receive quotes from suppliers
             </p>
           </Link>
+          <Link
+            href="/marketplace/inquiry-cart"
+            className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6 hover:border-blue-500 transition-colors group"
+          >
+            <div className="text-3xl mb-3">📦</div>
+            <h3 className="text-white font-semibold text-lg mb-1 group-hover:text-blue-400 transition-colors">
+              Inquiry Cart
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Review and send inquiries to suppliers
+            </p>
+          </Link>
         </div>
 
         {/* Categories */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-white">Categories</h2>
-            <Link href="/marketplace/products" className="text-[#d4a843] text-sm hover:underline">
-              View All Products →
+            <Link href="/marketplace/categories" className="text-[#d4a843] text-sm hover:underline">
+              Browse All Categories →
             </Link>
           </div>
           {loadingData && categories.length === 0 ? (
