@@ -496,10 +496,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold">
+                <button
+                  onClick={() => !isLoggedIn && router.push('/login?redirect=/marketplace/products/' + product.id)}
+                  className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                >
                   Contact
                 </button>
-                <button className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors">
+                <button
+                  onClick={() => !isLoggedIn && router.push('/login?redirect=/marketplace/products/' + product.id)}
+                  className="px-4 py-2 border border-[#242830] text-white rounded-lg hover:bg-[#242830] transition-colors"
+                >
                   View Profile
                 </button>
               </div>

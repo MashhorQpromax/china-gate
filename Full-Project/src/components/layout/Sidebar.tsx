@@ -20,6 +20,7 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   onClose?: () => void;
   isRTL?: boolean;
   userRole?: 'buyer' | 'seller' | 'admin';
+  isAuthenticated?: boolean;
 }
 
 const SidebarLink: React.FC<{
@@ -48,7 +49,7 @@ const SidebarLink: React.FC<{
 );
 
 const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
-  ({ isOpen = true, onClose, isRTL = false, userRole = 'buyer', className }, ref) => {
+  ({ isOpen = true, onClose, isRTL = false, userRole = 'buyer', isAuthenticated = true, className }, ref) => {
     const pathname = usePathname();
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -120,6 +121,16 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       },
     ];
 
+    // Guest users only see Marketplace
+    const guestItems: SidebarItem[] = [
+      {
+        id: 'marketplace',
+        label: 'Marketplace',
+        href: '/marketplace',
+        icon: '🛒',
+      },
+    ];
+
     // Role-based items
     const roleItems =
       userRole === 'admin'
@@ -131,15 +142,17 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
           }]
         : baseItems;
 
-    const menuItems = [
-      ...roleItems,
-      {
-        id: 'settings',
-        label: 'Settings',
-        href: '/settings',
-        icon: '⚙️',
-      },
-    ];
+    const menuItems = !isAuthenticated
+      ? guestItems
+      : [
+          ...roleItems,
+          {
+            id: 'settings',
+            label: 'Settings',
+            href: '/settings',
+            icon: '⚙️',
+          },
+        ];
 
     return (
       <>

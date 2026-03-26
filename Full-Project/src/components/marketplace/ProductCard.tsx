@@ -15,6 +15,7 @@ interface ProductCardProps {
     certifications: string[];
     availableForPartnership: boolean;
     image?: string;
+    description?: string;
   };
   isListView?: boolean;
 }
@@ -67,6 +68,9 @@ export default function ProductCard({ product, isListView = false }: ProductCard
                 )}
               </div>
 
+              {product.description && (
+                <p className="text-gray-400 text-sm line-clamp-2 mb-2">{product.description}</p>
+              )}
               <div className="grid grid-cols-3 gap-4 text-sm mb-3">
                 <div>
                   <p className="text-gray-500 text-xs">Price</p>

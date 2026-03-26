@@ -32,6 +32,7 @@ interface Product {
   status: string;
   featured: boolean;
   brand_name: string;
+  short_description_en: string;
   categories?: { name_en: string; name_ar: string; slug: string };
   supplier_id: string;
 }
@@ -51,6 +52,8 @@ export default function ProductsMarketplacePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
 
   const itemsPerPage = viewMode === 'grid' ? 12 : 10;
 
@@ -82,6 +85,8 @@ export default function ProductsMarketplacePage() {
 
       if (selectedCategory) params.set('category_id', selectedCategory);
       if (searchTerm) params.set('search', searchTerm);
+      if (minPrice) params.set('min_price', minPrice);
+      if (maxPrice) params.set('max_price', maxPrice);
 
       // Map sort options to API params
       switch (sortBy) {
@@ -116,7 +121,7 @@ export default function ProductsMarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy]);
+  }, [currentPage, itemsPerPage, selectedCategory, searchTerm, sortBy, minPrice, maxPrice]);
 
   useEffect(() => {
     fetchProducts();
@@ -148,7 +153,7 @@ export default function ProductsMarketplacePage() {
             </p>
           </div>
           <Link
-            href="/marketplace/requests"
+            href={isLoggedIn ? '/marketplace/requests' : '/login?redirect=/marketplace/requests'}
             className="px-6 py-3 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
           >
             + Submit RFQ
@@ -239,6 +244,46 @@ export default function ProductsMarketplacePage() {
               ))}
             </div>
 
+            {/* Price Range Filter */}
+            <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-white">Price Range (USD)</h3>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={minPrice}
+                  onChange={(e) => {
+                    setMinPrice(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-[#c41e3a] outline-none"
+                />
+                <span className="text-gray-500">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={maxPrice}
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-[#0c0f14] border border-[#242830] rounded px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-[#c41e3a] outline-none"
+                />
+              </div>
+              {(minPrice || maxPrice) && (
+                <button
+                  onClick={() => {
+                    setMinPrice('');
+                    setMaxPrice('');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs text-[#c41e3a] hover:text-red-400 transition-colors"
+                >
+                  Clear price filter
+                </button>
+              )}
+            </div>
+
             {/* Sort (mobile-friendly duplicate) */}
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 space-y-3 lg:hidden">
               <h3 className="font-semibold text-white">Sort By</h3>
@@ -267,11 +312,13 @@ export default function ProductsMarketplacePage() {
                 <p className="text-gray-400">
                   {loading ? 'Loading...' : `Showing ${totalProducts} product${totalProducts !== 1 ? 's' : ''}`}
                 </p>
-                {(selectedCategory || searchTerm) && (
+                {(selectedCategory || searchTerm || minPrice || maxPrice) && (
                   <button
                     onClick={() => {
                       setSelectedCategory('');
                       setSearchTerm('');
+                      setMinPrice('');
+                      setMaxPrice('');
                       setCurrentPage(1);
                     }}
                     className="text-xs text-[#c41e3a] hover:text-red-400 transition-colors"
@@ -333,6 +380,7 @@ export default function ProductsMarketplacePage() {
                       certifications: product.certifications || [],
                       availableForPartnership: product.featured || false,
                       image: product.main_image_url,
+                      description: product.short_description_en || '',
                     }}
                     isListView={viewMode === 'list'}
                   />

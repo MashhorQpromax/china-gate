@@ -75,6 +75,7 @@ const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
             onClose={() => setSidebarOpen(false)}
             isRTL={isRTL}
             userRole={userRole}
+            isAuthenticated={isAuthenticated}
           />
 
           {/* Main content */}
