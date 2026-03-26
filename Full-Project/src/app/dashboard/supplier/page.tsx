@@ -303,9 +303,9 @@ export default function SupplierDashboardPage() {
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Active Deals</h2>
-                <a href="#" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
+                <Link href="/deals" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
                   View All →
-                </a>
+                </Link>
               </div>
               {loadingDeals ? (
                 <SkeletonLoader count={3} />
@@ -366,9 +366,9 @@ export default function SupplierDashboardPage() {
             <div className="bg-[#1a1d23] border border-[#242830] rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Available RFQs</h2>
-                <a href="#" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
+                <Link href="/dashboard/supplier/rfqs" className="text-[#c41e3a] hover:text-red-600 text-sm font-semibold">
                   View All →
-                </a>
+                </Link>
               </div>
               {loadingRfqs ? (
                 <div className="space-y-4">
@@ -379,9 +379,10 @@ export default function SupplierDashboardPage() {
               ) : rfqs.length > 0 ? (
                 <div className="space-y-4">
                   {rfqs.map((rfq) => (
-                    <div
+                    <Link
                       key={rfq.id}
-                      className="p-4 bg-[#0c0f14] rounded-lg border border-[#242830] hover:border-[#d4a843] transition-colors"
+                      href={`/dashboard/supplier/rfqs/${rfq.id}`}
+                      className="block p-4 bg-[#0c0f14] rounded-lg border border-[#242830] hover:border-[#d4a843] transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -394,11 +395,11 @@ export default function SupplierDashboardPage() {
                             <span>Due: {rfq.required_delivery_date ? new Date(rfq.required_delivery_date).toLocaleDateString() : 'No deadline'}</span>
                           </div>
                         </div>
-                        <button className="ml-4 px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm whitespace-nowrap">
-                          Bid
-                        </button>
+                        <span className="ml-4 px-4 py-2 bg-[#c41e3a] text-white rounded-lg font-semibold text-sm whitespace-nowrap">
+                          Submit Quote
+                        </span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (

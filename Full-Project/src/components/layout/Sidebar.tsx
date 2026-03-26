@@ -139,6 +139,12 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
         href: '/dashboard/supplier/products',
         icon: '📋',
       },
+      {
+        id: 'incoming-rfqs',
+        label: 'Incoming RFQs',
+        href: '/dashboard/supplier/rfqs',
+        icon: '📩',
+      },
     ];
 
     // Role-based items

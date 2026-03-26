@@ -71,10 +71,14 @@ export default function PurchaseRequestsPage() {
       const res = await fetch(`/api/rfq?${params}`);
       const data = await res.json();
 
-      if (data.rfqs) {
-        setRfqs(data.rfqs);
-        setTotalPages(data.pagination?.totalPages || 1);
-        setTotalRfqs(data.pagination?.total || 0);
+      const rfqList = data.data || data.rfqs || [];
+      setRfqs(rfqList);
+      if (data.meta) {
+        setTotalPages(data.meta.totalPages || 1);
+        setTotalRfqs(data.meta.total || 0);
+      } else if (data.pagination) {
+        setTotalPages(data.pagination.totalPages || 1);
+        setTotalRfqs(data.pagination.total || 0);
       }
     } catch (err) {
       console.error('Failed to load RFQs:', err);

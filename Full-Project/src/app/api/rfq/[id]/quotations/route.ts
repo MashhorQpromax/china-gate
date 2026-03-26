@@ -62,9 +62,12 @@ export async function POST(
       notes, specifications, attachments,
     } = body;
 
-    if (!supplierId || !unitPrice || !quantity || !totalPrice || !validUntil) {
+    // Resolve supplier ID from body or auth headers
+    const resolvedSupplierId = supplierId || request.headers.get('x-user-id');
+
+    if (!resolvedSupplierId || !unitPrice || !quantity || !totalPrice || !validUntil) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields (authentication required)' },
         { status: 400 }
       );
     }
@@ -75,7 +78,7 @@ export async function POST(
         reference_number: '', // Auto-generated
         purchase_request_id: id,
         product_id: productId || null,
-        supplier_id: supplierId,
+        supplier_id: resolvedSupplierId,
         buyer_id: rfq.buyer_id,
         unit_price: unitPrice,
         quantity,
