@@ -59,6 +59,9 @@ export default function MarketplacePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [recentRfqs, setRecentRfqs] = useState<RFQ[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalRfqs, setTotalRfqs] = useState(0);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -70,29 +73,36 @@ export default function MarketplacePage() {
   }, []);
 
   useEffect(() => {
+    let loaded = 0;
+    const checkDone = () => { loaded++; if (loaded >= 4) setLoadingData(false); };
+
     // Fetch featured products
     fetch('/api/products?status=active&featured=true&limit=4')
       .then(r => r.json())
-      .then(d => setFeaturedProducts(d.products || []))
-      .catch(() => {});
+      .then(d => { setFeaturedProducts(d.products || []); setTotalProducts(d.pagination?.total || 0); })
+      .catch(() => {})
+      .finally(checkDone);
 
     // Fetch latest products
     fetch('/api/products?status=active&limit=8&sort_by=created_at&sort_order=desc')
       .then(r => r.json())
-      .then(d => setLatestProducts(d.products || []))
-      .catch(() => {});
+      .then(d => { setLatestProducts(d.products || []); if (d.pagination?.total) setTotalProducts(d.pagination.total); })
+      .catch(() => {})
+      .finally(checkDone);
 
     // Fetch categories
     fetch('/api/categories')
       .then(r => r.json())
       .then(d => setCategories(d.categories || d || []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(checkDone);
 
     // Fetch recent RFQs
     fetch('/api/rfq?limit=5')
       .then(r => r.json())
-      .then(d => setRecentRfqs(d.data || []))
-      .catch(() => {});
+      .then(d => { setRecentRfqs(d.data || []); setTotalRfqs(d.pagination?.total || d.data?.length || 0); })
+      .catch(() => {})
+      .finally(checkDone);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -142,11 +152,11 @@ export default function MarketplacePage() {
 
           {/* Quick Stats */}
           <div className="flex justify-center gap-8 mt-6 text-white/80 text-sm">
-            <span>{latestProducts.length > 0 ? '100+' : '0'} Products</span>
+            <span>{totalProducts > 0 ? `${totalProducts}+` : '...'} Products</span>
             <span>|</span>
-            <span>{categories.length} Categories</span>
+            <span>{categories.length || '...'} Categories</span>
             <span>|</span>
-            <span>{recentRfqs.length > 0 ? '50+' : '0'} Active RFQs</span>
+            <span>{totalRfqs > 0 ? `${totalRfqs}+` : '...'} Active RFQs</span>
           </div>
         </div>
 
@@ -191,14 +201,23 @@ export default function MarketplacePage() {
         </div>
 
         {/* Categories */}
-        {categories.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Categories</h2>
-              <Link href="/marketplace/products" className="text-[#d4a843] text-sm hover:underline">
-                View All Products →
-              </Link>
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white">Categories</h2>
+            <Link href="/marketplace/products" className="text-[#d4a843] text-sm hover:underline">
+              View All Products →
+            </Link>
+          </div>
+          {loadingData && categories.length === 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="bg-[#1a1d23] border border-[#242830] rounded-lg p-4 text-center animate-pulse">
+                  <div className="w-8 h-8 bg-[#242830] rounded mx-auto mb-2" />
+                  <div className="h-4 bg-[#242830] rounded w-3/4 mx-auto" />
+                </div>
+              ))}
             </div>
+          ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {categories.slice(0, 12).map(cat => (
                 <Link
@@ -215,11 +234,11 @@ export default function MarketplacePage() {
                 </Link>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Featured Products */}
-        {featuredProducts.length > 0 && (
+        {(loadingData || featuredProducts.length > 0) && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-white">Featured Products</h2>
@@ -228,7 +247,17 @@ export default function MarketplacePage() {
               </Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredProducts.map(product => (
+              {loadingData && featuredProducts.length === 0 ? (
+                [1,2,3,4].map(i => (
+                  <div key={i} className="bg-[#1a1d23] border border-[#242830] rounded-lg overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-[#242830]" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-[#242830] rounded w-3/4" />
+                      <div className="h-4 bg-[#242830] rounded w-1/2" />
+                    </div>
+                  </div>
+                ))
+              ) : featuredProducts.map(product => (
                 <Link
                   key={product.id}
                   href={`/marketplace/products/${product.id}`}
@@ -270,7 +299,7 @@ export default function MarketplacePage() {
         )}
 
         {/* Latest Products */}
-        {latestProducts.length > 0 && (
+        {(loadingData || latestProducts.length > 0) && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-white">Latest Products</h2>

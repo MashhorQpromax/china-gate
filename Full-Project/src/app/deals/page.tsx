@@ -32,8 +32,8 @@ interface ApiDeal {
 // Stage display config
 const stageOrder = [
   'negotiation', 'quotation_sent', 'quotation_review', 'quotation_accepted',
-  'po_issued', 'po_confirmed', 'production', 'production_inspection',
-  'ready_for_shipment', 'lc_issued', 'shipped', 'in_transit',
+  'po_issued', 'po_confirmed', 'production_start', 'production_inspection',
+  'ready_for_shipment', 'lc_issued', 'goods_shipped', 'goods_in_transit',
   'port_arrived', 'customs_clearance', 'delivery', 'completed',
 ];
 
@@ -44,12 +44,12 @@ const stageLabels: Record<string, string> = {
   quotation_accepted: 'Quote Accepted',
   po_issued: 'PO Issued',
   po_confirmed: 'PO Confirmed',
-  production: 'Production',
+  production_start: 'Production',
   production_inspection: 'Quality Check',
   ready_for_shipment: 'Ready to Ship',
   lc_issued: 'LC Issued',
-  shipped: 'Shipped',
-  in_transit: 'In Transit',
+  goods_shipped: 'Shipped',
+  goods_in_transit: 'In Transit',
   port_arrived: 'Port Arrived',
   customs_clearance: 'Customs',
   delivery: 'Delivery',
@@ -80,6 +80,7 @@ export default function DealsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -91,6 +92,7 @@ export default function DealsPage() {
 
       const params = new URLSearchParams({ page: page.toString(), limit: '20' });
       if (stageFilter !== 'all') params.set('stage', stageFilter);
+      if (searchQuery) params.set('search', searchQuery);
 
       const res = await fetch(`/api/deals?${params}`, {
         credentials: 'include',
@@ -116,7 +118,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, stageFilter]);
+  }, [page, stageFilter, searchQuery]);
 
   useEffect(() => {
     fetchDeals();
@@ -124,12 +126,14 @@ export default function DealsPage() {
 
   // Compute stats from loaded deals
   const activeDealCount = deals.filter(d => d.stage !== 'completed').length;
+  const completedCount = deals.filter(d => d.stage === 'completed').length;
   const totalValue = deals.reduce((sum, d) => sum + (d.total_value || 0), 0);
 
   const stats = [
     { label: 'Total Deals', value: total, color: 'text-blue-400', icon: '📊' },
-    { label: 'Active (this page)', value: activeDealCount, color: 'text-green-400', icon: '📈' },
-    { label: 'Page Value', value: formatCurrency(totalValue), color: 'text-emerald-400', icon: '💰' },
+    { label: 'Active', value: activeDealCount, color: 'text-green-400', icon: '📈' },
+    { label: 'Completed', value: completedCount, color: 'text-emerald-400', icon: '✅' },
+    { label: 'Total Value', value: formatCurrency(totalValue), color: 'text-[#d4a843]', icon: '💰' },
   ];
 
   return (
@@ -144,7 +148,7 @@ export default function DealsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((stat) => (
             <div key={stat.label} className="bg-[#1a1f2b] rounded-lg p-4 border border-gray-700 hover:border-[#c41e3a]/50 transition-colors">
               <div className="flex items-center justify-between">
@@ -161,6 +165,16 @@ export default function DealsPage() {
         {/* Filters */}
         <div className="bg-[#1a1f2b] rounded-lg p-4 border border-gray-700">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">Search</label>
+              <input
+                type="text"
+                placeholder="Search by product, reference, or company..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                className="w-full bg-[#0c0f14] text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-[#c41e3a] outline-none transition-colors placeholder-gray-500"
+              />
+            </div>
             <div>
               <label className="block text-gray-400 text-sm mb-2">Deal Stage</label>
               <select
@@ -208,7 +222,7 @@ export default function DealsPage() {
                     <th className="px-6 py-3 text-left text-gray-400 font-semibold">Amount</th>
                     <th className="px-6 py-3 text-left text-gray-400 font-semibold">Stage</th>
                     <th className="px-6 py-3 text-left text-gray-400 font-semibold">Progress</th>
-                    <th className="px-6 py-3 text-left text-gray-400 font-semibold">Updated</th>
+                    <th className="px-6 py-3 text-left text-gray-400 font-semibold">Date</th>
                     <th className="px-6 py-3 text-left text-gray-400 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -251,8 +265,11 @@ export default function DealsPage() {
                         </div>
                         <span className="text-xs text-gray-400 mt-1">{Math.round(getStageProgress(deal.stage))}%</span>
                       </td>
-                      <td className="px-6 py-4 text-gray-400 text-sm">
-                        {deal.updated_at ? new Date(deal.updated_at).toLocaleDateString() : '-'}
+                      <td className="px-6 py-4 text-sm">
+                        <div className="text-gray-300">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : '-'}</div>
+                        {deal.updated_at && deal.updated_at !== deal.created_at && (
+                          <div className="text-xs text-gray-500">Updated {new Date(deal.updated_at).toLocaleDateString()}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <a href={`/deals/${deal.id}`} className="text-[#d4a843] hover:text-yellow-300 text-sm font-semibold">

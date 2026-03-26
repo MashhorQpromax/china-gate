@@ -80,6 +80,8 @@ export default function DealDetailPage() {
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
+  const [stageNote, setStageNote] = useState('');
 
   const fetchDeal = useCallback(async () => {
     if (!dealId) return;
@@ -118,6 +120,30 @@ export default function DealDetailPage() {
   useEffect(() => {
     fetchDeal();
   }, [fetchDeal]);
+
+  const handleAdvanceStage = async () => {
+    if (!deal || advancing) return;
+    const currentIdx = stageOrder.indexOf(deal.stage);
+    if (currentIdx === -1 || currentIdx >= stageOrder.length - 1) return;
+    const nextStage = stageOrder[currentIdx + 1];
+    setAdvancing(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stage: nextStage, note: stageNote || `Advanced to ${stageLabels[nextStage] || nextStage}` }),
+      });
+      if (res.ok) {
+        setStageNote('');
+        fetchDeal();
+      }
+    } catch (err) {
+      console.error('Failed to advance stage:', err);
+    } finally {
+      setAdvancing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -193,6 +219,24 @@ export default function DealDetailPage() {
           <p className="text-gray-400 text-sm mt-2">
             Stage {currentStageIdx + 1} of {stageOrder.length}: <span className="text-white font-semibold">{stageLabels[deal.stage] || deal.stage}</span>
           </p>
+          {deal.stage !== 'completed' && currentStageIdx < stageOrder.length - 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <input
+                type="text"
+                placeholder="Add a note (optional)..."
+                value={stageNote}
+                onChange={(e) => setStageNote(e.target.value)}
+                className="flex-1 bg-[#0c0f14] border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-[#c41e3a] outline-none"
+              />
+              <button
+                onClick={handleAdvanceStage}
+                disabled={advancing}
+                className="px-4 py-2 bg-[#c41e3a] text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-50 whitespace-nowrap"
+              >
+                {advancing ? 'Updating...' : `Advance to ${stageLabels[stageOrder[currentStageIdx + 1]] || stageOrder[currentStageIdx + 1]}`}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stage Details */}

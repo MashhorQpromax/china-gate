@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
     // Get userRole from header
     const userRole = request.headers.get('x-user-role') || 'any';
     const stage = searchParams.get('stage');
+    const search = searchParams.get('search');
 
     let query = supabase
       .from('deals')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
 
     // If userId is available, filter by role
     if (userId) {
@@ -42,6 +42,14 @@ export async function GET(request: NextRequest) {
     if (stage) {
       query = query.eq('stage', stage);
     }
+
+    // Search by product name or reference number
+    if (search) {
+      query = query.or(`product_name.ilike.%${search}%,reference_number.ilike.%${search}%`);
+    }
+
+    // Apply pagination after all filters
+    query = query.range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
 
